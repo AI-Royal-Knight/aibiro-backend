@@ -1,0 +1,1191 @@
+{
+  "info": {
+    "_postman_id": "aibiro-backend-api-collection",
+    "name": "Aibiro API Collection",
+    "description": "Postman collection for Aibiro Backend API, covering Authentication (Sign Up, OTP Verification, Resend OTP, Login, Profile) and System Health Checks.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "userEmail",
+      "value": "john.doe@example.com",
+      "type": "string"
+    },
+    {
+      "key": "userPassword",
+      "value": "Password123!",
+      "type": "string"
+    },
+    {
+      "key": "otpCode",
+      "value": "123456",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "projectId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fileId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "Endpoints for user registration, OTP email verification, login, and profile management.",
+      "item": [
+        {
+          "name": "1. Sign Up (Register)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"John Doe\",\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\",\n  \"confirm_password\": \"{{userPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register",
+                ""
+              ]
+            },
+            "description": "Create a new user account with full name, email, and password. Dispatches a 6-digit OTP to the user's email."
+          },
+          "response": [
+            {
+              "name": "Successful Sign Up",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"full_name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"Password123!\",\n  \"confirm_password\": \"Password123!\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/register/",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "register",
+                    ""
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Account created successfully. A 6-digit verification code has been sent to your email.\",\n  \"data\": {\n    \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n    \"email\": \"john.doe@example.com\",\n    \"full_name\": \"John Doe\",\n    \"username\": \"john.doe\",\n    \"role\": \"user\",\n    \"auth_provider\": \"email\",\n    \"is_verified\": false,\n    \"is_active\": true,\n    \"date_joined\": \"2026-09-08T15:00:00Z\",\n    \"created_at\": \"2026-09-08T15:00:00Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "2. Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.tokens && jsonData.tokens.access) {",
+                  "    pm.collectionVariables.set(\"accessToken\", jsonData.tokens.access);",
+                  "    pm.collectionVariables.set(\"refreshToken\", jsonData.tokens.refresh);",
+                  "    console.log(\"Access and Refresh tokens saved successfully.\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"otp\": \"{{otpCode}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/verify-otp/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "verify-otp",
+                ""
+              ]
+            },
+            "description": "Verifies the 6-digit OTP sent to the email address. Upon success, activates/verifies the user and returns JWT access and refresh tokens."
+          },
+          "response": [
+            {
+              "name": "Successful OTP Verification",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"otp\": \"482910\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/verify-otp/",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "verify-otp",
+                    ""
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Email verified successfully.\",\n  \"tokens\": {\n    \"access\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n    \"refresh\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n  },\n  \"user\": {\n    \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n    \"email\": \"john.doe@example.com\",\n    \"full_name\": \"John Doe\",\n    \"username\": \"john.doe\",\n    \"role\": \"user\",\n    \"auth_provider\": \"email\",\n    \"is_verified\": true,\n    \"is_active\": true,\n    \"date_joined\": \"2026-09-08T15:00:00Z\",\n    \"created_at\": \"2026-09-08T15:00:00Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "3. Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/resend-otp/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "resend-otp",
+                ""
+              ]
+            },
+            "description": "Invalidates previous unused verification codes and sends a fresh 6-digit OTP to the user's email."
+          },
+          "response": [
+            {
+              "name": "OTP Resent",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john.doe@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/resend-otp/",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "resend-otp",
+                    ""
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"A new verification code has been sent to your email.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "4. Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.tokens && jsonData.tokens.access) {",
+                  "    pm.collectionVariables.set(\"accessToken\", jsonData.tokens.access);",
+                  "    pm.collectionVariables.set(\"refreshToken\", jsonData.tokens.refresh);",
+                  "    console.log(\"Access and Refresh tokens saved successfully.\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login",
+                ""
+              ]
+            },
+            "description": "Authenticate an existing user using email and password. Returns JWT token pair."
+          },
+          "response": [
+            {
+              "name": "Successful Login",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"Password123!\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login/",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "login",
+                    ""
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Login successful.\",\n  \"tokens\": {\n    \"access\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n    \"refresh\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n  },\n  \"user\": {\n    \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n    \"email\": \"john.doe@example.com\",\n    \"full_name\": \"John Doe\",\n    \"username\": \"john.doe\",\n    \"role\": \"user\",\n    \"auth_provider\": \"email\",\n    \"is_verified\": true,\n    \"is_active\": true,\n    \"date_joined\": \"2026-09-08T15:00:00Z\",\n    \"created_at\": \"2026-09-08T15:00:00Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "5. Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.access) {",
+                  "    pm.collectionVariables.set(\"accessToken\", jsonData.access);",
+                  "    console.log(\"New Access token saved successfully.\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/token/refresh/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "token",
+                "refresh",
+                ""
+              ]
+            },
+            "description": "Exchange an unexpired refresh token for a newly issued access token."
+          }
+        },
+        {
+          "name": "6. Get Profile Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/profile/settings/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "profile",
+                "settings",
+                ""
+              ]
+            },
+            "description": "Retrieve the profile settings (first name, last name, email, phone number, job title) of the authenticated user."
+          }
+        },
+        {
+          "name": "7. Update Profile Settings",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"phone_number\": \"+1 (555) 123-4567\",\n  \"job_title\": \"CEO & Founder\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/profile/settings/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "profile",
+                "settings",
+                ""
+              ]
+            },
+            "description": "Updates profile settings: First Name, Last Name, Phone Number, Job Title, and Profile Picture. Automatically synchronizes Full Name."
+          }
+        },
+        {
+          "name": "8. Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout",
+                ""
+              ]
+            },
+            "description": "Logs out the authenticated user by invalidating/blacklisting the provided refresh token."
+          }
+        },
+        {
+          "name": "9. Update Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"{{userPassword}}\",\n  \"new_password\": \"NewSecurePassword456!\",\n  \"confirm_new_password\": \"NewSecurePassword456!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/security/password/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "security",
+                "password",
+                ""
+              ]
+            },
+            "description": "Updates the user's password matching the Security Settings UI (Current Password, New Password, Confirm New Password)."
+          },
+          "response": [
+            {
+              "name": "Successful Password Update",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"success\": true,\n  \"message\": \"Password updated successfully.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "10. Toggle 2FA (Enable / Disable)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enable\": true,\n  \"method\": \"email\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/security/2fa/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "security",
+                "2fa",
+                ""
+              ]
+            },
+            "description": "Toggles Two-Factor Authentication (2FA) matching the toggle in Security Settings UI. When enabled, subsequent logins will trigger an OTP verification code."
+          },
+          "response": [
+            {
+              "name": "2FA Enabled Successfully",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"success\": true,\n  \"message\": \"Two-factor authentication has been enabled successfully.\",\n  \"data\": {\n    \"two_factor_enabled\": true,\n    \"two_factor_method\": \"email\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "11. Get 2FA Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/security/2fa/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "security",
+                "2fa",
+                ""
+              ]
+            },
+            "description": "Retrieve current Two-Factor Authentication status (enabled/disabled and method)."
+          }
+        },
+        {
+          "name": "12. Get Password Change History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/security/password-history/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "security",
+                "password-history",
+                ""
+              ]
+            },
+            "description": "Retrieve recent password changes and security audit events for the authenticated user, matching the 'Password Change History' UI. Returns event timestamp (formatted), device information, location, device summary, IP address, and status badge ('Success' or 'Failed Attempt')."
+          },
+          "response": [
+            {
+              "name": "Password Change History List",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"count\": 3,\n  \"next\": null,\n  \"previous\": null,\n  \"results\": [\n    {\n      \"id\": \"7876a3be-5127-4632-9df7-fec5db358509\",\n      \"created_at\": \"2026-10-12T14:30:00Z\",\n      \"formatted_date\": \"Oct 12, 2026, 14:30\",\n      \"device_info\": \"MacBook Pro (Mac OS)\",\n      \"location\": \"Lisbon, Portugal\",\n      \"device_summary\": \"MacBook Pro (Mac OS) \u2022 Lisbon, Portugal\",\n      \"ip_address\": \"192.168.1.100\",\n      \"status\": \"success\",\n      \"status_display\": \"Success\"\n    },\n    {\n      \"id\": \"e4299b90-f2fa-48ef-be8f-eaae9116e001\",\n      \"created_at\": \"2026-05-04T09:15:00Z\",\n      \"formatted_date\": \"May 04, 2026, 09:15\",\n      \"device_info\": \"iPhone 13 (iOS)\",\n      \"location\": \"Lisbon, Portugal\",\n      \"device_summary\": \"iPhone 13 (iOS) \u2022 Lisbon, Portugal\",\n      \"ip_address\": \"192.168.1.105\",\n      \"status\": \"success\",\n      \"status_display\": \"Success\"\n    },\n    {\n      \"id\": \"f5bcbb90-b184-47f6-b185-1bf89bb824f2\",\n      \"created_at\": \"2026-01-18T18:45:00Z\",\n      \"formatted_date\": \"Jan 18, 2026, 18:45\",\n      \"device_info\": \"Windows PC (Windows 11)\",\n      \"location\": \"Porto, Portugal\",\n      \"device_summary\": \"Windows PC (Windows 11) \u2022 Porto, Portugal\",\n      \"ip_address\": \"192.168.1.110\",\n      \"status\": \"failed\",\n      \"status_display\": \"Failed Attempt\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "13. List Users (Admin / Super Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/users/?role=client&search=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "client",
+                  "description": "Filter by role: super_admin, admin, staff, qa_reviewer, client"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search by email, name, username, phone"
+                }
+              ]
+            },
+            "description": "List all user accounts with optional role filtering and keyword search. Restricted to Admins and Super Admins."
+          },
+          "response": [
+            {
+              "name": "User List Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"count\": 2,\n  \"next\": null,\n  \"previous\": null,\n  \"results\": [\n    {\n      \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n      \"email\": \"client@example.com\",\n      \"full_name\": \"John Doe\",\n      \"username\": \"john.doe\",\n      \"role\": \"client\",\n      \"role_display\": \"Client\",\n      \"auth_provider\": \"email\",\n      \"is_active\": true,\n      \"is_staff\": false,\n      \"is_superuser\": false,\n      \"is_verified\": true,\n      \"date_joined\": \"2026-09-08T15:00:00Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "14. Update User Role (Admin / Super Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"qa_reviewer\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/users/{{userId}}/role/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                "{{userId}}",
+                "role",
+                ""
+              ]
+            },
+            "description": "Update a user's role. Super Admins can assign any role; Admins can assign Staff, QA Reviewer, or Client, but cannot promote to or edit Super Admins."
+          },
+          "response": [
+            {
+              "name": "Role Updated Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"success\": true,\n  \"message\": \"User role successfully updated to QA Reviewer.\",\n  \"data\": {\n    \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n    \"email\": \"user@example.com\",\n    \"full_name\": \"Jane Doe\",\n    \"role\": \"qa_reviewer\",\n    \"role_display\": \"QA Reviewer\",\n    \"is_active\": true\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Projects & Documents",
+      "description": "Endpoints for Client Project management, accreditation surveys, and file attachments (PDF, DOCX, XLSX, etc.).",
+      "item": [
+        {
+          "name": "1. Create Project (Required: name, company_name, status)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"CARF Accreditation Survey\",\n  \"company_name\": \"Horizon Behavioral\",\n  \"status\": \"active\",\n  \"description\": \"Comprehensive accreditation readiness review.\",\n  \"compliance_score\": 94,\n  \"days_to_survey\": 42\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/projects/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                ""
+              ]
+            },
+            "description": "Create a new project. Required fields: 'name', 'company_name', and 'status'. Sets current user as owner. Also supports multipart/form-data with file attachments."
+          },
+          "response": [
+            {
+              "name": "Successful Project Creation",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"success\": true,\n  \"message\": \"Project created successfully.\",\n  \"data\": {\n    \"id\": \"1827fa98-3829-4d64-9fb2-371891901842\",\n    \"name\": \"CARF Accreditation Survey\",\n    \"company_name\": \"Horizon Behavioral\",\n    \"status\": \"active\",\n    \"status_display\": \"Active\",\n    \"description\": \"Comprehensive accreditation readiness review.\",\n    \"compliance_score\": 94,\n    \"days_to_survey\": 42,\n    \"total_files\": 0,\n    \"owner\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n    \"owner_email\": \"john.doe@example.com\",\n    \"files\": [],\n    \"created_at\": \"2026-09-08T16:00:00Z\",\n    \"updated_at\": \"2026-09-08T16:00:00Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "2. List Projects",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/projects/?status=active&search=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "active",
+                  "description": "Filter: active, in_progress, pending_review, completed, archived"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search by project name, company name, or description"
+                }
+              ]
+            },
+            "description": "List projects. Clients see their own projects; Admins/Staff/QA see all projects."
+          },
+          "response": [
+            {
+              "name": "Projects List Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"success\": true,\n  \"count\": 1,\n  \"data\": [\n    {\n      \"id\": \"1827fa98-3829-4d64-9fb2-371891901842\",\n      \"name\": \"CARF Accreditation Survey\",\n      \"company_name\": \"Horizon Behavioral\",\n      \"status\": \"active\",\n      \"status_display\": \"Active\",\n      \"compliance_score\": 94,\n      \"days_to_survey\": 42,\n      \"total_files\": 3,\n      \"owner_email\": \"john.doe@example.com\",\n      \"created_at\": \"2026-09-08T16:00:00Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "3. Get Project Detail (with Files)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/projects/{{projectId}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                "{{projectId}}",
+                ""
+              ]
+            },
+            "description": "Retrieve project details including all attached files, compliance metrics, and owner info."
+          }
+        },
+        {
+          "name": "4. Update Project (Partial - PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"CARF Accreditation Survey (Updated)\",\n  \"status\": \"in_progress\",\n  \"compliance_score\": 96,\n  \"days_to_survey\": 38\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/projects/{{projectId}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                "{{projectId}}",
+                ""
+              ]
+            },
+            "description": "Partially update any project field (name, company_name, status, description, compliance_score, days_to_survey)."
+          }
+        },
+        {
+          "name": "5. Update Project (Full - PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"CARF Accreditation Survey - Final\",\n  \"company_name\": \"Horizon Behavioral Health\",\n  \"status\": \"completed\",\n  \"description\": \"Accreditation finalized and approved.\",\n  \"compliance_score\": 100,\n  \"days_to_survey\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/projects/{{projectId}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                "{{projectId}}",
+                ""
+              ]
+            },
+            "description": "Full update of all project fields."
+          }
+        },
+        {
+          "name": "6. Delete Project",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/projects/{{projectId}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                "{{projectId}}",
+                ""
+              ]
+            },
+            "description": "Delete a project and cascade-delete all its attached files."
+          }
+        },
+        {
+          "name": "7. Upload File Under Project (Any File Type)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "description": "Select any file type (PDF, DOCX, XLSX, TXT, image, zip, etc.)"
+                },
+                {
+                  "key": "status",
+                  "value": "pending_review",
+                  "type": "text",
+                  "description": "Optional status: pending_review, reviewed, flagged, approved"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/projects/{{projectId}}/files/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                "{{projectId}}",
+                "files",
+                ""
+              ]
+            },
+            "description": "Upload any file type (PDF, DOCX, XLSX, images, archives, text) under a specific project. Preserves filename, size, and MIME type."
+          },
+          "response": [
+            {
+              "name": "Successful File Upload",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"success\": true,\n  \"message\": \"1 file(s) uploaded successfully.\",\n  \"data\": {\n    \"id\": \"9283fa81-1928-4829-9238-281901840192\",\n    \"project\": \"1827fa98-3829-4d64-9fb2-371891901842\",\n    \"file\": \"/media/projects/files/2026/09/Clinical_Policy_v2.pdf\",\n    \"file_url\": \"http://localhost:8000/media/projects/files/2026/09/Clinical_Policy_v2.pdf\",\n    \"original_name\": \"Clinical_Policy_v2.pdf\",\n    \"file_size\": 245760,\n    \"file_size_formatted\": \"240 KB\",\n    \"content_type\": \"application/pdf\",\n    \"status\": \"pending_review\",\n    \"status_display\": \"Pending AI Review\",\n    \"extension\": \"pdf\",\n    \"uploaded_by_email\": \"john.doe@example.com\",\n    \"created_at\": \"2026-09-08T16:05:00Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "8. List Project Files",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/projects/{{projectId}}/files/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                "{{projectId}}",
+                "files",
+                ""
+              ]
+            },
+            "description": "List all files uploaded under this project, matching the 'Recent Documents' UI card."
+          },
+          "response": [
+            {
+              "name": "Project Files List",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"success\": true,\n  \"count\": 3,\n  \"data\": [\n    {\n      \"id\": \"9283fa81-1928-4829-9238-281901840192\",\n      \"original_name\": \"Clinical_Policy_v2.pdf\",\n      \"file_size_formatted\": \"240 KB\",\n      \"status\": \"reviewed\",\n      \"status_display\": \"Reviewed\",\n      \"extension\": \"pdf\",\n      \"created_at\": \"2026-09-08T16:05:00Z\"\n    },\n    {\n      \"id\": \"a1283fa8-2938-4829-9238-381901840193\",\n      \"original_name\": \"Governance_Framework.docx\",\n      \"file_size_formatted\": \"1.2 MB\",\n      \"status\": \"pending_review\",\n      \"status_display\": \"Pending AI Review\",\n      \"extension\": \"docx\",\n      \"created_at\": \"2026-09-08T16:06:00Z\"\n    },\n    {\n      \"id\": \"b3283fa8-3948-4829-9238-481901840194\",\n      \"original_name\": \"Staff_Training_Log_2025.xlsx\",\n      \"file_size_formatted\": \"85 KB\",\n      \"status\": \"flagged\",\n      \"status_display\": \"Flagged\",\n      \"extension\": \"xlsx\",\n      \"created_at\": \"2026-09-08T16:07:00Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "9. Get Project File Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/projects/{{projectId}}/files/{{fileId}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                "{{projectId}}",
+                "files",
+                "{{fileId}}",
+                ""
+              ]
+            },
+            "description": "Retrieve individual file details and download URL."
+          }
+        },
+        {
+          "name": "10. Update File Status (Audit / Review)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"reviewed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/projects/{{projectId}}/files/{{fileId}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                "{{projectId}}",
+                "files",
+                "{{fileId}}",
+                ""
+              ]
+            },
+            "description": "Update review status of a file: 'pending_review', 'reviewed', 'flagged', or 'approved'."
+          }
+        },
+        {
+          "name": "11. Delete Project File",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/projects/{{projectId}}/files/{{fileId}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                "{{projectId}}",
+                "files",
+                "{{fileId}}",
+                ""
+              ]
+            },
+            "description": "Delete a file attachment from a project."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Checks",
+      "description": "Endpoints to monitor server, database, cache, and storage status.",
+      "item": [
+        {
+          "name": "1. Full Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/health/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health",
+                ""
+              ]
+            },
+            "description": "Returns full health status across database, cache, disk storage, and environment."
+          }
+        },
+        {
+          "name": "2. Database Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/health/db/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health",
+                "db",
+                ""
+              ]
+            },
+            "description": "Dedicated connectivity probe for configured databases."
+          }
+        },
+        {
+          "name": "3. Liveness Probe",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/health/live/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health",
+                "live",
+                ""
+              ]
+            },
+            "description": "Lightweight 200 OK liveness check for load balancers."
+          }
+        }
+      ]
+    }
+  ]
+}
