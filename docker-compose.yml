@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: aibiro_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-aibiro_db}
+      POSTGRES_USER: ${POSTGRES_USER:-aibiro_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aibiro_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aibiro_user} -d ${POSTGRES_DB:-aibiro_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aibiro_backend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - .:/app
+      - media_data:/app/media
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-docker-compose-key-change-in-production}
+      DEBUG: ${DEBUG:-True}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      DATABASE_URL: postgres://${POSTGRES_USER:-aibiro_user}:${POSTGRES_PASSWORD:-aibiro_password}@db:5432/${POSTGRES_DB:-aibiro_db}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: python manage.py runserver 0.0.0.0:8000
+
+volumes:
+  postgres_data:
+  media_data:
