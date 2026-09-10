@@ -24,9 +24,10 @@ services:
     container_name: aibiro_backend
     restart: unless-stopped
     ports:
-      - "${PORT:-8002}:8000"
+      - "${PORT:-8000}:8000"
     volumes:
       - .:/app
+      - /app/.venv
       - media_data:/app/media
     environment:
       SECRET_KEY: ${SECRET_KEY:-django-insecure-docker-compose-key-change-in-production}
