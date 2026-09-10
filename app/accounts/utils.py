@@ -1,3 +1,5 @@
+import json
+import urllib.request
 import secrets
 from typing import Optional, Tuple
 
@@ -144,7 +146,29 @@ def get_client_location(request) -> str:
         else None
     ) or request.META.get("HTTP_X_CLIENT_LOCATION")
 
-    return explicit_location or "Lisbon, Portugal"
+    if explicit_location:
+        return explicit_location
+
+    ip = get_client_ip(request)
+    if not ip or ip in ["127.0.0.1", "::1", "localhost"]:
+        return "Localhost"
+
+    try:
+        req = urllib.request.Request(f"http://ip-api.com/json/{ip}")
+        with urllib.request.urlopen(req, timeout=2) as response:
+            if response.status == 200:
+                data = json.loads(response.read().decode())
+                if data.get("status") == "success":
+                    city = data.get("city", "")
+                    country = data.get("country", "")
+                    if city and country:
+                        return f"{city}, {country}"
+                    elif country:
+                        return country
+    except Exception:
+        pass
+
+    return "Unknown Location"
 
 
 def record_password_change_event(

@@ -71,8 +71,13 @@ class SignUpSerializer(serializers.Serializer):
     Matches the Sign Up UI: Full Name, Email, Password, Confirm Password.
     """
 
-    full_name = serializers.CharField(
-        max_length=150,
+    first_name = serializers.CharField(
+        max_length=80,
+        required=True,
+        trim_whitespace=True,
+    )
+    last_name = serializers.CharField(
+        max_length=80,
         required=True,
         trim_whitespace=True,
     )
@@ -107,7 +112,11 @@ class SignUpSerializer(serializers.Serializer):
             )
 
         # Validate password strength using Django configured validators
-        user_instance = UserAccount(email=attrs.get("email"), full_name=attrs.get("full_name"))
+        user_instance = UserAccount(
+            email=attrs.get("email"),
+            first_name=attrs.get("first_name"),
+            last_name=attrs.get("last_name")
+        )
         validate_password(password, user=user_instance)
 
         return attrs
@@ -120,7 +129,8 @@ class SignUpSerializer(serializers.Serializer):
         user = UserAccount.objects.filter(email=email).first()
         if user and not user.is_verified:
             # Update existing unverified user with new details
-            user.full_name = validated_data.get("full_name", user.full_name)
+            user.first_name = validated_data.get("first_name", user.first_name)
+            user.last_name = validated_data.get("last_name", user.last_name)
             user.set_password(password)
             user.save()
             return user
