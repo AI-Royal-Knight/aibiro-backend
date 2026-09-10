@@ -24,7 +24,7 @@ services:
     container_name: aibiro_backend
     restart: unless-stopped
     ports:
-      - "${PORT:-8000}:8000"
+      - "${PORT:-8001}:8000"
     volumes:
       - .:/app
       - media_data:/app/media
