@@ -7,13 +7,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.accounts.models import UserAccount
-from .models import Project, ProjectFile
+from .models import Project, Document
 from .permissions import IsProjectOwnerOrAdmin
 from .serializers import (
     FileUploadSerializer,
     ProjectCreateSerializer,
     ProjectDetailSerializer,
-    ProjectFileSerializer,
+    DocumentSerializer,
     ProjectListSerializer,
     ProjectUpdateSerializer,
 )
@@ -192,7 +192,7 @@ class ProjectDetailView(APIView):
         )
 
 
-class ProjectFileUploadView(APIView):
+class DocumentUploadView(APIView):
     """
     List files or upload any type of file under a project.
     """
@@ -220,7 +220,7 @@ class ProjectFileUploadView(APIView):
             )
 
         files = project.files.all().order_by("-created_at")
-        serializer = ProjectFileSerializer(files, many=True, context={"request": request})
+        serializer = DocumentSerializer(files, many=True, context={"request": request})
         return Response(
             {
                 "success": True,
@@ -248,13 +248,13 @@ class ProjectFileUploadView(APIView):
 
         # Handle multiple files if uploaded together
         uploaded_records = []
-        status_value = request.data.get("status", ProjectFile.FileStatus.PENDING_REVIEW)
-        if status_value not in ProjectFile.FileStatus.values:
-            status_value = ProjectFile.FileStatus.PENDING_REVIEW
+        status_value = request.data.get("status", Document.FileStatus.PENDING_REVIEW)
+        if status_value not in Document.FileStatus.values:
+            status_value = Document.FileStatus.PENDING_REVIEW
 
         for key in request.FILES:
             for raw_file in request.FILES.getlist(key):
-                file_record = ProjectFile.objects.create(
+                file_record = Document.objects.create(
                     project=project,
                     uploaded_by=request.user,
                     file=raw_file,
@@ -266,9 +266,9 @@ class ProjectFileUploadView(APIView):
                 uploaded_records.append(file_record)
 
         if len(uploaded_records) == 1:
-            data = ProjectFileSerializer(uploaded_records[0], context={"request": request}).data
+            data = DocumentSerializer(uploaded_records[0], context={"request": request}).data
         else:
-            data = ProjectFileSerializer(uploaded_records, many=True, context={"request": request}).data
+            data = DocumentSerializer(uploaded_records, many=True, context={"request": request}).data
 
         return Response(
             {
@@ -280,32 +280,32 @@ class ProjectFileUploadView(APIView):
         )
 
 
-class ProjectFileDetailView(APIView):
+class DocumentDetailView(APIView):
     """
     Retrieve, update status, or delete an uploaded file from a project.
     """
 
     permission_classes = [IsAuthenticated, IsProjectOwnerOrAdmin]
 
-    def get_file_and_project(self, project_id: str, file_id: str) -> tuple[Project, ProjectFile]:
+    def get_file_and_project(self, project_id: str, file_id: str) -> tuple[Project, Document]:
         try:
             project = Project.objects.get(pk=project_id)
             self.check_object_permissions(self.request, project)
-            project_file = project.files.get(pk=file_id)
-            return project, project_file
-        except (Project.DoesNotExist, ProjectFile.DoesNotExist, ValueError):
-            raise ProjectFile.DoesNotExist
+            document = project.files.get(pk=file_id)
+            return project, document
+        except (Project.DoesNotExist, Document.DoesNotExist, ValueError):
+            raise Document.DoesNotExist
 
     def get(self, request: Request, project_id: str, file_id: str) -> Response:
         try:
-            _, project_file = self.get_file_and_project(project_id, file_id)
-        except ProjectFile.DoesNotExist:
+            _, document = self.get_file_and_project(project_id, file_id)
+        except Document.DoesNotExist:
             return Response(
                 {"detail": "File not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = ProjectFileSerializer(project_file, context={"request": request})
+        serializer = DocumentSerializer(document, context={"request": request})
         return Response(
             {
                 "success": True,
@@ -317,8 +317,8 @@ class ProjectFileDetailView(APIView):
     def patch(self, request: Request, project_id: str, file_id: str) -> Response:
         """Update file status (e.g. reviewed, flagged, approved)."""
         try:
-            _, project_file = self.get_file_and_project(project_id, file_id)
-        except ProjectFile.DoesNotExist:
+            _, document = self.get_file_and_project(project_id, file_id)
+        except Document.DoesNotExist:
             return Response(
                 {"detail": "File not found."},
                 status=status.HTTP_404_NOT_FOUND,
@@ -326,15 +326,15 @@ class ProjectFileDetailView(APIView):
 
         new_status = request.data.get("status")
         if new_status:
-            if new_status not in ProjectFile.FileStatus.values:
+            if new_status not in Document.FileStatus.values:
                 return Response(
-                    {"status": [f"Invalid status. Choose from: {list(ProjectFile.FileStatus.values)}"]},
+                    {"status": [f"Invalid status. Choose from: {list(Document.FileStatus.values)}"]},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            project_file.status = new_status
-            project_file.save(update_fields=["status", "updated_at"])
+            document.status = new_status
+            document.save(update_fields=["status", "updated_at"])
 
-        serializer = ProjectFileSerializer(project_file, context={"request": request})
+        serializer = DocumentSerializer(document, context={"request": request})
         return Response(
             {
                 "success": True,
@@ -346,14 +346,14 @@ class ProjectFileDetailView(APIView):
 
     def delete(self, request: Request, project_id: str, file_id: str) -> Response:
         try:
-            _, project_file = self.get_file_and_project(project_id, file_id)
-        except ProjectFile.DoesNotExist:
+            _, document = self.get_file_and_project(project_id, file_id)
+        except Document.DoesNotExist:
             return Response(
                 {"detail": "File not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        project_file.delete()
+        document.delete()
         return Response(
             {
                 "success": True,

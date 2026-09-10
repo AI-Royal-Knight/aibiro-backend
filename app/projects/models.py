@@ -13,10 +13,8 @@ class Project(BaseModel):
 
     class ProjectStatus(models.TextChoices):
         ACTIVE = "active", _("Active")
-        IN_PROGRESS = "in_progress", _("In Progress")
-        PENDING_REVIEW = "pending_review", _("Pending Review")
+        PENDING = "pending", _("Pending")
         COMPLETED = "completed", _("Completed")
-        ARCHIVED = "archived", _("Archived")
 
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -69,10 +67,10 @@ class Project(BaseModel):
 
     @property
     def total_files(self) -> int:
-        return self.files.count()
+        return self.documents.count()
 
 
-class ProjectFile(BaseModel):
+class Document(BaseModel):
     """
     File or document uploaded under a Project.
     Supports any file type (PDF, DOCX, XLSX, images, archives, text, etc.).
@@ -87,7 +85,7 @@ class ProjectFile(BaseModel):
     project = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
-        related_name="files",
+        related_name="documents",
         help_text="The project this file belongs to",
     )
     uploaded_by = models.ForeignKey(
@@ -95,7 +93,7 @@ class ProjectFile(BaseModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="uploaded_project_files",
+        related_name="uploaded_documents",
     )
     file = models.FileField(
         upload_to="projects/files/%Y/%m/",
@@ -123,8 +121,8 @@ class ProjectFile(BaseModel):
     )
 
     class Meta:
-        verbose_name = "Project File"
-        verbose_name_plural = "Project Files"
+        verbose_name = "Document"
+        verbose_name_plural = "Documents"
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["project", "status"]),

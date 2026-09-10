@@ -3,7 +3,7 @@ from rest_framework.request import Request
 from rest_framework.views import APIView
 
 from app.accounts.models import UserAccount
-from .models import Project, ProjectFile
+from .models import Project, Document
 
 
 class IsProjectOwnerOrAdmin(permissions.BasePermission):

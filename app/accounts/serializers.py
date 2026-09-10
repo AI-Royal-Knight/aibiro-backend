@@ -92,7 +92,8 @@ class SignUpSerializer(serializers.Serializer):
 
     def validate_email(self, value: str) -> str:
         normalized_email = value.lower().strip()
-        if UserAccount.objects.filter(email=normalized_email).exists():
+        user = UserAccount.objects.filter(email=normalized_email).first()
+        if user and user.is_verified:
             raise serializers.ValidationError("An account with this email address already exists.")
         return normalized_email
 
@@ -114,6 +115,16 @@ class SignUpSerializer(serializers.Serializer):
     def create(self, validated_data: dict) -> UserAccount:
         validated_data.pop("confirm_password")
         password = validated_data.pop("password")
+        email = validated_data.get("email")
+        
+        user = UserAccount.objects.filter(email=email).first()
+        if user and not user.is_verified:
+            # Update existing unverified user with new details
+            user.full_name = validated_data.get("full_name", user.full_name)
+            user.set_password(password)
+            user.save()
+            return user
+            
         user = UserAccount.objects.create_user(
             password=password,
             is_verified=False,

@@ -783,7 +783,7 @@
               "status": "Created",
               "code": 201,
               "_postman_previewlanguage": "json",
-              "body": "{\n  \"success\": true,\n  \"message\": \"Project created successfully.\",\n  \"data\": {\n    \"id\": \"1827fa98-3829-4d64-9fb2-371891901842\",\n    \"name\": \"CARF Accreditation Survey\",\n    \"company_name\": \"Horizon Behavioral\",\n    \"status\": \"active\",\n    \"status_display\": \"Active\",\n    \"description\": \"Comprehensive accreditation readiness review.\",\n    \"compliance_score\": 94,\n    \"days_to_survey\": 42,\n    \"total_files\": 0,\n    \"owner\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n    \"owner_email\": \"john.doe@example.com\",\n    \"files\": [],\n    \"created_at\": \"2026-09-08T16:00:00Z\",\n    \"updated_at\": \"2026-09-08T16:00:00Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"message\": \"Project created successfully.\",\n  \"data\": {\n    \"id\": \"1827fa98-3829-4d64-9fb2-371891901842\",\n    \"name\": \"CARF Accreditation Survey\",\n    \"company_name\": \"Horizon Behavioral\",\n    \"status\": \"active\",\n    \"status_display\": \"Active\",\n    \"description\": \"Comprehensive accreditation readiness review.\",\n    \"compliance_score\": 94,\n    \"days_to_survey\": 42,\n    \"total_documents\": 0,\n    \"owner\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n    \"owner_email\": \"john.doe@example.com\",\n    \"documents\": [],\n    \"created_at\": \"2026-09-08T16:00:00Z\",\n    \"updated_at\": \"2026-09-08T16:00:00Z\"\n  }\n}"
             }
           ]
         },
@@ -811,7 +811,7 @@
                 {
                   "key": "status",
                   "value": "active",
-                  "description": "Filter: active, in_progress, pending_review, completed, archived"
+                  "description": "Filter: active, pending, completed"
                 },
                 {
                   "key": "search",
@@ -828,7 +828,7 @@
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "body": "{\n  \"success\": true,\n  \"count\": 1,\n  \"data\": [\n    {\n      \"id\": \"1827fa98-3829-4d64-9fb2-371891901842\",\n      \"name\": \"CARF Accreditation Survey\",\n      \"company_name\": \"Horizon Behavioral\",\n      \"status\": \"active\",\n      \"status_display\": \"Active\",\n      \"compliance_score\": 94,\n      \"days_to_survey\": 42,\n      \"total_files\": 3,\n      \"owner_email\": \"john.doe@example.com\",\n      \"created_at\": \"2026-09-08T16:00:00Z\"\n    }\n  ]\n}"
+              "body": "{\n  \"success\": true,\n  \"count\": 1,\n  \"data\": [\n    {\n      \"id\": \"1827fa98-3829-4d64-9fb2-371891901842\",\n      \"name\": \"CARF Accreditation Survey\",\n      \"company_name\": \"Horizon Behavioral\",\n      \"status\": \"active\",\n      \"status_display\": \"Active\",\n      \"compliance_score\": 94,\n      \"days_to_survey\": 42,\n      \"total_documents\": 3,\n      \"owner_email\": \"john.doe@example.com\",\n      \"created_at\": \"2026-09-08T16:00:00Z\"\n    }\n  ]\n}"
             }
           ]
         },
@@ -873,7 +873,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"CARF Accreditation Survey (Updated)\",\n  \"status\": \"in_progress\",\n  \"compliance_score\": 96,\n  \"days_to_survey\": 38\n}"
+              "raw": "{\n  \"name\": \"CARF Accreditation Survey (Updated)\",\n  \"status\": \"pending\",\n  \"compliance_score\": 96,\n  \"days_to_survey\": 38\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/projects/{{projectId}}/",
@@ -995,12 +995,12 @@
               "status": "Created",
               "code": 201,
               "_postman_previewlanguage": "json",
-              "body": "{\n  \"success\": true,\n  \"message\": \"1 file(s) uploaded successfully.\",\n  \"data\": {\n    \"id\": \"9283fa81-1928-4829-9238-281901840192\",\n    \"project\": \"1827fa98-3829-4d64-9fb2-371891901842\",\n    \"file\": \"/media/projects/files/2026/09/Clinical_Policy_v2.pdf\",\n    \"file_url\": \"http://localhost:8000/media/projects/files/2026/09/Clinical_Policy_v2.pdf\",\n    \"original_name\": \"Clinical_Policy_v2.pdf\",\n    \"file_size\": 245760,\n    \"file_size_formatted\": \"240 KB\",\n    \"content_type\": \"application/pdf\",\n    \"status\": \"pending_review\",\n    \"status_display\": \"Pending AI Review\",\n    \"extension\": \"pdf\",\n    \"uploaded_by_email\": \"john.doe@example.com\",\n    \"created_at\": \"2026-09-08T16:05:00Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"message\": \"1 document(s) uploaded successfully.\",\n  \"data\": {\n    \"id\": \"9283fa81-1928-4829-9238-281901840192\",\n    \"project\": \"1827fa98-3829-4d64-9fb2-371891901842\",\n    \"file\": \"/media/projects/files/2026/09/Clinical_Policy_v2.pdf\",\n    \"file_url\": \"http://localhost:8000/media/projects/files/2026/09/Clinical_Policy_v2.pdf\",\n    \"original_name\": \"Clinical_Policy_v2.pdf\",\n    \"file_size\": 245760,\n    \"file_size_formatted\": \"240 KB\",\n    \"content_type\": \"application/pdf\",\n    \"status\": \"pending_review\",\n    \"status_display\": \"Pending AI Review\",\n    \"extension\": \"pdf\",\n    \"uploaded_by_email\": \"john.doe@example.com\",\n    \"created_at\": \"2026-09-08T16:05:00Z\"\n  }\n}"
             }
           ]
         },
         {
-          "name": "8. List Project Files",
+          "name": "8. List Documents",
           "request": {
             "method": "GET",
             "header": [
@@ -1026,7 +1026,7 @@
           },
           "response": [
             {
-              "name": "Project Files List",
+              "name": "Documents List",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -1035,7 +1035,7 @@
           ]
         },
         {
-          "name": "9. Get Project File Detail",
+          "name": "9. Get Document Detail",
           "request": {
             "method": "GET",
             "header": [
@@ -1097,7 +1097,7 @@
           }
         },
         {
-          "name": "11. Delete Project File",
+          "name": "11. Delete Document",
           "request": {
             "method": "DELETE",
             "header": [

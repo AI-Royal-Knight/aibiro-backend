@@ -4,7 +4,7 @@ from django.test import TestCase
 
 from app.accounts.models import UserAccount
 from app.accounts.views import get_tokens_for_user
-from app.projects.models import Project, ProjectFile
+from app.projects.models import Project, Document
 
 
 class ProjectCreationAndCRUDTests(TestCase):
@@ -214,7 +214,7 @@ class ProjectCreationAndCRUDTests(TestCase):
         self.assertEqual(project.status, "archived")
 
 
-class ProjectFileUploadTests(TestCase):
+class DocumentUploadTests(TestCase):
     """
     Tests covering:
     - Uploading any file format (PDF, DOCX, XLSX, TXT, images, archives).
@@ -270,23 +270,23 @@ class ProjectFileUploadTests(TestCase):
 
         self.assertEqual(self.project.files.count(), 4)
 
-    def test_list_project_files(self):
+    def test_list_documents(self):
         """Test retrieving all files under a project."""
-        ProjectFile.objects.create(
+        Document.objects.create(
             project=self.project,
             uploaded_by=self.client_user,
             file=SimpleUploadedFile("doc1.pdf", b"pdf content"),
             original_name="doc1.pdf",
             file_size=11,
-            status=ProjectFile.FileStatus.REVIEWED,
+            status=Document.FileStatus.REVIEWED,
         )
-        ProjectFile.objects.create(
+        Document.objects.create(
             project=self.project,
             uploaded_by=self.client_user,
             file=SimpleUploadedFile("doc2.xlsx", b"xlsx content"),
             original_name="doc2.xlsx",
             file_size=12,
-            status=ProjectFile.FileStatus.FLAGGED,
+            status=Document.FileStatus.FLAGGED,
         )
 
         resp = self.client.get(
@@ -302,28 +302,28 @@ class ProjectFileUploadTests(TestCase):
 
     def test_update_file_status(self):
         """Test updating a file's review status."""
-        project_file = ProjectFile.objects.create(
+        document = Document.objects.create(
             project=self.project,
             uploaded_by=self.client_user,
             file=SimpleUploadedFile("policy.pdf", b"policy content"),
             original_name="policy.pdf",
             file_size=14,
-            status=ProjectFile.FileStatus.PENDING_REVIEW,
+            status=Document.FileStatus.PENDING_REVIEW,
         )
 
         resp = self.client.patch(
-            f"/api/projects/{self.project.id}/files/{project_file.id}/",
+            f"/api/projects/{self.project.id}/files/{document.id}/",
             data={"status": "approved"},
             content_type="application/json",
             **self.auth_headers,
         )
         self.assertEqual(resp.status_code, 200)
-        project_file.refresh_from_db()
-        self.assertEqual(project_file.status, "approved")
+        document.refresh_from_db()
+        self.assertEqual(document.status, "approved")
 
     def test_delete_file_from_project(self):
         """Test deleting a file under a project."""
-        project_file = ProjectFile.objects.create(
+        document = Document.objects.create(
             project=self.project,
             uploaded_by=self.client_user,
             file=SimpleUploadedFile("temp.txt", b"temp"),
@@ -333,7 +333,7 @@ class ProjectFileUploadTests(TestCase):
         self.assertEqual(self.project.files.count(), 1)
 
         resp = self.client.delete(
-            f"/api/projects/{self.project.id}/files/{project_file.id}/",
+            f"/api/projects/{self.project.id}/files/{document.id}/",
             **self.auth_headers,
         )
         self.assertEqual(resp.status_code, 204)

@@ -1,10 +1,10 @@
 from django.contrib import admin
 
-from .models import Project, ProjectFile
+from .models import Project, Document
 
 
-class ProjectFileInline(admin.TabularInline):
-    model = ProjectFile
+class DocumentInline(admin.TabularInline):
+    model = Document
     extra = 0
     readonly_fields = ("id", "original_name", "file_size", "content_type", "created_at")
     fields = ("id", "file", "original_name", "status", "file_size", "content_type", "uploaded_by", "created_at")
@@ -25,12 +25,12 @@ class ProjectAdmin(admin.ModelAdmin):
     list_filter = ("status", "created_at")
     search_fields = ("name", "company_name", "description", "owner__email")
     ordering = ("-created_at",)
-    inlines = [ProjectFileInline]
+    inlines = [DocumentInline]
     readonly_fields = ("id", "created_at", "updated_at")
 
 
-@admin.register(ProjectFile)
-class ProjectFileAdmin(admin.ModelAdmin):
+@admin.register(Document)
+class DocumentAdmin(admin.ModelAdmin):
     list_display = (
         "original_name",
         "project",

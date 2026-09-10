@@ -1,10 +1,10 @@
 import os
 from rest_framework import serializers
 
-from .models import Project, ProjectFile
+from .models import Project, Document
 
 
-class ProjectFileSerializer(serializers.ModelSerializer):
+class DocumentSerializer(serializers.ModelSerializer):
     """
     Representation of an uploaded project file/document.
     """
@@ -16,7 +16,7 @@ class ProjectFileSerializer(serializers.ModelSerializer):
     uploaded_by_email = serializers.EmailField(source="uploaded_by.email", read_only=True)
 
     class Meta:
-        model = ProjectFile
+        model = Document
         fields = (
             "id",
             "project",
@@ -50,7 +50,7 @@ class ProjectFileSerializer(serializers.ModelSerializer):
             "updated_at",
         )
 
-    def get_file_url(self, obj: ProjectFile) -> str:
+    def get_file_url(self, obj: Document) -> str:
         if obj.file:
             request = self.context.get("request")
             if request:
@@ -58,7 +58,7 @@ class ProjectFileSerializer(serializers.ModelSerializer):
             return obj.file.url
         return ""
 
-    def get_file_size_formatted(self, obj: ProjectFile) -> str:
+    def get_file_size_formatted(self, obj: Document) -> str:
         size = obj.file_size or 0
         for unit in ["B", "KB", "MB", "GB"]:
             if size < 1024.0:
@@ -104,7 +104,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     total_files = serializers.IntegerField(read_only=True)
     owner_email = serializers.EmailField(source="owner.email", read_only=True)
-    files = ProjectFileSerializer(many=True, read_only=True)
+    files = DocumentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Project
@@ -191,7 +191,7 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
         if request and request.FILES:
             for file_key in request.FILES:
                 for uploaded_file in request.FILES.getlist(file_key):
-                    ProjectFile.objects.create(
+                    Document.objects.create(
                         project=project,
                         uploaded_by=user,
                         file=uploaded_file,
@@ -262,19 +262,19 @@ class FileUploadSerializer(serializers.Serializer):
         error_messages={"required": "A file must be provided for upload."},
     )
     status = serializers.ChoiceField(
-        choices=ProjectFile.FileStatus.choices,
+        choices=Document.FileStatus.choices,
         required=False,
-        default=ProjectFile.FileStatus.PENDING_REVIEW,
+        default=Document.FileStatus.PENDING_REVIEW,
     )
 
-    def save(self, project: Project, user) -> ProjectFile:
+    def save(self, project: Project, user) -> Document:
         uploaded_file = self.validated_data["file"]
         status_value = self.validated_data.get(
             "status",
-            ProjectFile.FileStatus.PENDING_REVIEW,
+            Document.FileStatus.PENDING_REVIEW,
         )
 
-        project_file = ProjectFile.objects.create(
+        document = Document.objects.create(
             project=project,
             uploaded_by=user,
             file=uploaded_file,
@@ -283,4 +283,4 @@ class FileUploadSerializer(serializers.Serializer):
             content_type=getattr(uploaded_file, "content_type", "") or "",
             status=status_value,
         )
-        return project_file
+        return document

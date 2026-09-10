@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     # Third party apps
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
+    'anymail',
     # Local apps
     'app.common',
     'app.accounts',
@@ -152,11 +153,16 @@ SPECTACULAR_SETTINGS = {
     'COMPONENT_SPLIT_REQUEST': True
 }
 
-# Email
+# Email Configuration
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
+
+ANYMAIL = {
+    "SENDINBLUE_API_KEY": env("BREVO_API_KEY", default=""),
+}
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@aibiro.com")
 
 MAILERS = {
     'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        'BACKEND': 'anymail.backends.sendinblue.EmailBackend',
     },
 }
