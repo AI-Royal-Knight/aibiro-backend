@@ -6,6 +6,7 @@ from typing import Optional, Tuple
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.mail import send_mail
+from django.template.loader import render_to_string
 
 from .models import OTP, PasswordChangeHistory, UserAccount
 
@@ -34,30 +35,60 @@ def create_otp_for_user(user: UserAccount, expiry_minutes: int = 5) -> Tuple[OTP
     return otp, raw_otp
 
 
-def send_otp_email(user: UserAccount, raw_otp: str) -> bool:
+def send_otp_email(user: UserAccount, raw_otp: str, purpose: str = "signup") -> bool:
     """
-    Send verification OTP to user's email address.
+    Send verification OTP to user's email address using an AccrediSure branded,
+    responsive HTML email template with a plain-text fallback.
     """
-    subject = "Your Aibiro Verification Code"
-    message = (
-        f"Hello {user.full_name or user.email},\n\n"
-        f"Your verification code is: {raw_otp}\n\n"
-        f"This code will expire in 5 minutes. If you did not request this, please ignore this email.\n\n"
-        f"Best regards,\nThe Aibiro Team"
-    )
-    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@aibiro.com")
+    recipient_name = user.first_name or user.full_name or (user.email.split("@")[0] if user.email else "User")
+    digits = list(str(raw_otp).strip())
+
+    if purpose == "2fa":
+        subject = f"{raw_otp} is your AccrediSure security verification code"
+    elif purpose == "resend":
+        subject = f"{raw_otp} is your new AccrediSure verification code"
+    else:
+        subject = f"{raw_otp} is your AccrediSure verification code"
+
+    context = {
+        "user": user,
+        "recipient_name": recipient_name,
+        "recipient_email": user.email,
+        "raw_otp": raw_otp,
+        "digits": digits,
+        "purpose": purpose,
+        "subject": subject,
+    }
+
+    try:
+        html_message = render_to_string("accounts/emails/verification_code.html", context)
+    except Exception:
+        html_message = None
+
+    try:
+        plain_message = render_to_string("accounts/emails/verification_code.txt", context)
+    except Exception:
+        plain_message = (
+            f"Hello {recipient_name},\n\n"
+            f"Your AccrediSure verification code is: {raw_otp}\n\n"
+            f"This code will expire in 5 minutes. If you did not request this, please ignore this email.\n\n"
+            f"Best regards,\nThe AccrediSure Team"
+        )
+
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@midgeneration.com")
 
     try:
         send_mail(
             subject=subject,
-            message=message,
+            message=plain_message,
             from_email=from_email,
             recipient_list=[user.email],
+            html_message=html_message,
             fail_silently=False,
         )
         return True
     except Exception:
-        # In development or if SMTP is unconfigured, return False but do not crash
+        # In development or if SMTP/API is unconfigured, return False but do not crash
         return False
 
 

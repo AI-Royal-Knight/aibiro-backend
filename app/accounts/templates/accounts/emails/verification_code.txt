@@ -1,0 +1,32 @@
+================================================================================
+ACCREDISURE | Healthcare Compliance & Accreditation
+================================================================================
+
+Hello {{ recipient_name|default:"there" }},
+
+{% if purpose == "2fa" %}
+A sign in attempt was detected for your AccrediSure account.
+{% elif purpose == "resend" %}
+You recently requested a new verification code for your AccrediSure account.
+{% else %}
+Welcome to AccrediSure! To activate your account and access your organization's
+compliance dashboard, please verify your email address.
+{% endif %}
+
+--------------------------------------------------------------------------------
+YOUR 6-DIGIT VERIFICATION CODE:
+{{ raw_otp }}
+--------------------------------------------------------------------------------
+
+This code is single-use and will expire in 5 minutes.
+
+SECURITY ADVISORY:
+AccrediSure staff will never ask you to share your verification code. If you
+did not initiate this request, you can safely ignore this email.
+
+Need help? Contact our support team: https://accredisure.org/contact
+
+--------------------------------------------------------------------------------
+This email was delivered to {{ recipient_email }}.
+© 2026 AccrediSure Inc. All rights reserved.
+================================================================================

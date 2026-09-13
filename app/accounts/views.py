@@ -1,4 +1,8 @@
+from django.conf import settings
 from django.db import models
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+from django.views import View
 from rest_framework import generics, serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
@@ -58,7 +62,7 @@ class SignUpView(APIView):
 
         # Generate and dispatch OTP
         _, raw_otp = create_otp_for_user(user)
-        send_otp_email(user, raw_otp)
+        send_otp_email(user, raw_otp, purpose="signup")
 
         return Response(
             {
@@ -149,7 +153,7 @@ class ResendOTPView(APIView):
             )
 
         _, raw_otp = create_otp_for_user(user)
-        send_otp_email(user, raw_otp)
+        send_otp_email(user, raw_otp, purpose="resend")
 
         return Response(
             {
@@ -178,7 +182,7 @@ class LoginView(APIView):
         # If Two-Factor Authentication is enabled, dispatch OTP challenge
         if user.two_factor_enabled:
             _, raw_otp = create_otp_for_user(user)
-            send_otp_email(user, raw_otp)
+            send_otp_email(user, raw_otp, purpose="2fa")
             return Response(
                 {
                     "success": True,
@@ -428,4 +432,30 @@ class UserRoleUpdateView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class EmailPreviewView(View):
+    """
+    Developer preview endpoint for rendered verification email.
+    Active when DEBUG=True.
+    """
+    def get(self, request, *args, **kwargs):
+        if not settings.DEBUG:
+            return HttpResponse("Preview disabled in production.", status=403)
+        purpose = request.GET.get("purpose", "signup")
+        otp = request.GET.get("otp", "849201")
+        name = request.GET.get("name", "Dr. Sarah Mitchell")
+        email = request.GET.get("email", "sarah.mitchell@accredisure.com")
+        
+        context = {
+            "recipient_name": name,
+            "recipient_email": email,
+            "raw_otp": otp,
+            "digits": list(otp),
+            "purpose": purpose,
+            "subject": f"{otp} is your AccrediSure verification code",
+        }
+        html_content = render_to_string("accounts/emails/verification_code.html", context)
+        return HttpResponse(html_content, content_type="text/html")
+
 

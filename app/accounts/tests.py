@@ -1,9 +1,11 @@
 from datetime import timedelta
+from django.core import mail
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils import timezone
 
 from app.accounts.models import OTP, PasswordChangeHistory, UserAccount
+from app.accounts.utils import send_otp_email
 
 
 class UserAccountModelTests(TestCase):
@@ -79,6 +81,55 @@ class OTPModelTests(TestCase):
         otp.save()
         self.assertFalse(otp.is_valid(expiry_minutes=5))
         self.assertTrue(otp.is_expired(expiry_minutes=5))
+
+
+class EmailVerificationTemplateTests(TestCase):
+    def setUp(self):
+        self.user = UserAccount.objects.create_user(
+            email="doctor.smith@accredisure.com",
+            password="SecurePassword123!",
+            first_name="Alexander",
+            last_name="Smith",
+            full_name="Alexander Smith",
+        )
+
+    def test_send_otp_email_renders_branded_html_and_text(self):
+        """Test that send_otp_email sends rich AccrediSure HTML email with OTP digits and fallback."""
+        success = send_otp_email(self.user, "592814", purpose="signup")
+        self.assertTrue(success)
+        self.assertEqual(len(mail.outbox), 1)
+
+        sent_mail = mail.outbox[0]
+        self.assertIn("592814", sent_mail.subject)
+        self.assertIn("AccrediSure", sent_mail.subject)
+        self.assertEqual(sent_mail.to, ["doctor.smith@accredisure.com"])
+
+        # Check plain text content
+        self.assertIn("592814", sent_mail.body)
+        self.assertIn("AccrediSure", sent_mail.body)
+        self.assertIn("Alexander", sent_mail.body)
+
+        # Check HTML alternative
+        self.assertTrue(len(sent_mail.alternatives) > 0)
+        html_content, content_type = sent_mail.alternatives[0]
+        self.assertEqual(content_type, "text/html")
+        self.assertIn("AccrediSure", html_content)
+        self.assertIn("Healthcare Compliance &amp; Accreditation", html_content)
+        self.assertIn("592814", html_content)
+        self.assertIn("Alexander", html_content)
+        self.assertIn("#1A1611", html_content)  # Brand obsidian color
+        self.assertIn("#B18F56", html_content)  # Brand accent gold color
+
+    def test_email_preview_endpoint_in_debug_mode(self):
+        """Test GET /api/auth/preview-email/ renders preview template when DEBUG=True."""
+        with self.settings(DEBUG=True):
+            response = self.client.get("/api/auth/preview-email/?otp=928410&name=Sarah")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("text/html", response["Content-Type"])
+            html = response.content.decode("utf-8")
+            self.assertIn("928410", html)
+            self.assertIn("AccrediSure", html)
+            self.assertIn("Sarah", html)
 
 
 class AuthViewTests(TestCase):

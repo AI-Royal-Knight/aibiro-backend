@@ -159,10 +159,12 @@ SPECTACULAR_SETTINGS = {
 ANYMAIL = {
     "SENDINBLUE_API_KEY": env("BREVO_API_KEY", default=""),
 }
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@aibiro.com")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@midgeneration.com")
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'anymail.backends.sendinblue.EmailBackend',
-    },
-}
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND",
+    default="anymail.backends.sendinblue.EmailBackend"
+    if env("BREVO_API_KEY", default="")
+    else "django.core.mail.backends.console.EmailBackend",
+)
+

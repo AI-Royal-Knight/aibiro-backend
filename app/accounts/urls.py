@@ -13,9 +13,11 @@ from .views import (
     UserProfileView,
     UserRoleUpdateView,
     VerifyOTPView,
+    EmailPreviewView,
 )
 
 urlpatterns = [
+    path("preview-email/", EmailPreviewView.as_view(), name="preview-email"),
     path("register/", SignUpView.as_view(), name="register"),
     path("signup/", SignUpView.as_view(), name="signup"),
     path("verify-otp/", VerifyOTPView.as_view(), name="verify-otp"),
