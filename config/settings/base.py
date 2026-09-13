@@ -168,3 +168,8 @@ EMAIL_BACKEND = env(
     else "django.core.mail.backends.console.EmailBackend",
 )
 
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = env.str("GOOGLE_CLIENT_ID", default="")
+GOOGLE_CLIENT_SECRET = env.str("GOOGLE_CLIENT_SECRET", default="")
+
+

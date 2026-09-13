@@ -1,3 +1,8 @@
+import json
+import logging
+import urllib.error
+import urllib.parse
+import urllib.request
 from django.conf import settings
 from django.db import models
 from django.http import HttpResponse
@@ -12,6 +17,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import PasswordChangeHistory, UserAccount
 from .serializers import (
+    GoogleAuthSerializer,
     LoginSerializer,
     LogoutSerializer,
     PasswordChangeHistorySerializer,
@@ -199,6 +205,214 @@ class LoginView(APIView):
             {
                 "success": True,
                 "message": "Login successful.",
+                "tokens": tokens,
+                "user": UserAccountSerializer(user).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+logger = logging.getLogger(__name__)
+
+
+def verify_google_token(id_token: str | None = None, access_token: str | None = None) -> dict:
+    """
+    Verifies a Google ID token or OAuth2 access token with Google's APIs.
+    Returns a dict with user details:
+    {
+        "sub": "...",
+        "email": "...",
+        "first_name": "...",
+        "last_name": "...",
+        "full_name": "...",
+        "picture": "...",
+    }
+    """
+    if id_token:
+        url = f"https://oauth2.googleapis.com/tokeninfo?id_token={urllib.parse.quote(id_token)}"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "AccrediSure-App"})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            try:
+                err_data = json.loads(exc.read().decode("utf-8"))
+                err_msg = err_data.get("error_description") or err_data.get("error") or str(exc)
+            except Exception:
+                err_msg = str(exc)
+            raise serializers.ValidationError({"id_token": f"Invalid Google token: {err_msg}"})
+        except Exception as exc:
+            logger.error(f"Google ID token verification failed: {exc}")
+            raise serializers.ValidationError({"id_token": "Failed to verify Google token with Google servers."})
+
+        # Check issuer
+        iss = payload.get("iss")
+        if iss not in ["accounts.google.com", "https://accounts.google.com"]:
+            raise serializers.ValidationError({"id_token": "Invalid Google token issuer."})
+
+        # Check audience if GOOGLE_CLIENT_ID is configured
+        google_client_id = getattr(settings, "GOOGLE_CLIENT_ID", "")
+        if google_client_id and payload.get("aud") != google_client_id:
+            raise serializers.ValidationError({"id_token": "Google token audience mismatch."})
+
+        email = payload.get("email")
+        if not email:
+            raise serializers.ValidationError({"id_token": "Google token does not contain an email address."})
+
+        email_verified = payload.get("email_verified")
+        if email_verified is False or str(email_verified).lower() == "false":
+            raise serializers.ValidationError({"id_token": "Google account email is not verified."})
+
+        first_name = payload.get("given_name", "")
+        last_name = payload.get("family_name", "")
+        full_name = payload.get("name") or f"{first_name} {last_name}".strip()
+        sub = payload.get("sub")
+        picture = payload.get("picture", "")
+
+        return {
+            "sub": sub,
+            "email": email.lower().strip(),
+            "first_name": first_name,
+            "last_name": last_name,
+            "full_name": full_name,
+            "picture": picture,
+        }
+
+    elif access_token:
+        url = "https://www.googleapis.com/oauth2/v3/userinfo"
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "User-Agent": "AccrediSure-App",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            try:
+                err_data = json.loads(exc.read().decode("utf-8"))
+                err_msg = err_data.get("error_description") or err_data.get("error") or str(exc)
+            except Exception:
+                err_msg = str(exc)
+            raise serializers.ValidationError({"access_token": f"Invalid Google access token: {err_msg}"})
+        except Exception as exc:
+            logger.error(f"Google access token verification failed: {exc}")
+            raise serializers.ValidationError({"access_token": "Failed to verify Google access token with Google servers."})
+
+        email = payload.get("email")
+        if not email:
+            raise serializers.ValidationError({"access_token": "Google profile does not contain an email address."})
+
+        email_verified = payload.get("email_verified")
+        if email_verified is False or str(email_verified).lower() == "false":
+            raise serializers.ValidationError({"access_token": "Google account email is not verified."})
+
+        first_name = payload.get("given_name", "")
+        last_name = payload.get("family_name", "")
+        full_name = payload.get("name") or f"{first_name} {last_name}".strip()
+        sub = payload.get("sub")
+        picture = payload.get("picture", "")
+
+        return {
+            "sub": sub,
+            "email": email.lower().strip(),
+            "first_name": first_name,
+            "last_name": last_name,
+            "full_name": full_name,
+            "picture": picture,
+        }
+
+    raise serializers.ValidationError("Either id_token or access_token must be provided.")
+
+
+class GoogleAuthView(APIView):
+    """
+    Class-based view for Google OAuth2 authentication.
+    Accepts id_token or access_token from Google Identity Services,
+    verifies it with Google, and either creates a new UserAccount (role=client)
+    or links/logs into an existing UserAccount, returning JWT tokens.
+    """
+
+    permission_classes = [AllowAny]
+    serializer_class = GoogleAuthSerializer
+
+    def post(self, request: Request) -> Response:
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        id_token = serializer.validated_data.get("id_token")
+        access_token = serializer.validated_data.get("access_token")
+
+        user_info = verify_google_token(id_token=id_token, access_token=access_token)
+
+        email = user_info["email"]
+        sub = user_info["sub"]
+        first_name = user_info.get("first_name", "")
+        last_name = user_info.get("last_name", "")
+        full_name = user_info.get("full_name", "")
+
+        # 1. Look up existing user by provider_uid
+        user = UserAccount.objects.filter(provider_uid=sub).first()
+
+        # 2. If not found by provider_uid, look up by email
+        if not user:
+            user = UserAccount.objects.filter(email=email).first()
+            if user:
+                # Link existing user account to Google
+                user.provider_uid = sub
+                user.auth_provider = UserAccount.AuthProvider.GOOGLE
+                user.is_verified = True
+                if not user.first_name and first_name:
+                    user.first_name = first_name
+                if not user.last_name and last_name:
+                    user.last_name = last_name
+                if not user.full_name and full_name:
+                    user.full_name = full_name
+                user.save()
+            else:
+                # Create a new user with CLIENT role
+                user = UserAccount(
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    full_name=full_name,
+                    provider_uid=sub,
+                    auth_provider=UserAccount.AuthProvider.GOOGLE,
+                    role=UserAccount.Role.CLIENT,
+                    is_verified=True,
+                    is_active=True,
+                )
+                user.set_unusable_password()
+                user.save()
+
+        if not user.is_active:
+            return Response(
+                {"success": False, "message": "This account is disabled. Please contact support."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # If user has 2FA enabled, challenge them
+        if user.two_factor_enabled:
+            _, raw_otp = create_otp_for_user(user)
+            send_otp_email(user, raw_otp, purpose="2fa")
+            return Response(
+                {
+                    "success": True,
+                    "two_factor_required": True,
+                    "message": "Two-factor authentication is required. A verification code has been sent to your email.",
+                    "email": user.email,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        tokens = get_tokens_for_user(user)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Google authentication successful.",
                 "tokens": tokens,
                 "user": UserAccountSerializer(user).data,
             },

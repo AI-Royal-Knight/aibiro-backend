@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.test import TestCase
@@ -136,6 +137,8 @@ class AuthViewTests(TestCase):
     def test_signup_success_creates_user_and_otp(self):
         """Test POST /api/auth/register/ creates account and generates OTP."""
         payload = {
+            "first_name": "Sarah",
+            "last_name": "Connor",
             "full_name": "Sarah Connor",
             "email": "sarah@example.com",
             "password": "Password123!",
@@ -157,6 +160,8 @@ class AuthViewTests(TestCase):
     def test_signup_password_mismatch_returns_400(self):
         """Test POST /api/auth/register/ rejects mismatched passwords."""
         payload = {
+            "first_name": "Test",
+            "last_name": "User",
             "full_name": "Test User",
             "email": "mismatch@example.com",
             "password": "Password123!",
@@ -168,8 +173,10 @@ class AuthViewTests(TestCase):
 
     def test_signup_duplicate_email_returns_400(self):
         """Test POST /api/auth/register/ rejects already registered email."""
-        UserAccount.objects.create_user(email="existing@example.com", password="Password123!")
+        UserAccount.objects.create_user(email="existing@example.com", password="Password123!", is_verified=True)
         payload = {
+            "first_name": "Duplicate",
+            "last_name": "User",
             "full_name": "Duplicate User",
             "email": "existing@example.com",
             "password": "Password123!",
@@ -837,4 +844,104 @@ class UserRoleManagementApiTests(TestCase):
             HTTP_AUTHORIZATION=f"Bearer {self.client_token}",
         )
         self.assertEqual(resp.status_code, 403)
+
+
+class GoogleAuthApiTests(TestCase):
+    """Integration tests for Google OAuth authentication endpoint /api/auth/google/."""
+
+    def test_google_auth_requires_token(self):
+        """Returns 400 when neither id_token nor access_token is provided."""
+        resp = self.client.post(
+            "/api/auth/google/",
+            data={},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    @patch("app.accounts.views.verify_google_token")
+    def test_google_auth_creates_new_client_account(self, mock_verify):
+        """New Google user is created with Role.CLIENT and is_verified=True."""
+        mock_verify.return_value = {
+            "sub": "google-uid-12345",
+            "email": "newgoogleuser@example.com",
+            "first_name": "Google",
+            "last_name": "User",
+            "full_name": "Google User",
+            "picture": "https://example.com/avatar.jpg",
+        }
+
+        resp = self.client.post(
+            "/api/auth/google/",
+            data={"id_token": "valid-id-token"},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data["success"])
+        self.assertIn("tokens", data)
+        self.assertIn("access", data["tokens"])
+        self.assertEqual(data["user"]["email"], "newgoogleuser@example.com")
+        self.assertEqual(data["user"]["role"], UserAccount.Role.CLIENT)
+        self.assertTrue(data["user"]["is_verified"])
+
+        user = UserAccount.objects.get(email="newgoogleuser@example.com")
+        self.assertEqual(user.auth_provider, UserAccount.AuthProvider.GOOGLE)
+        self.assertEqual(user.provider_uid, "google-uid-12345")
+        self.assertTrue(user.is_verified)
+
+    @patch("app.accounts.views.verify_google_token")
+    def test_google_auth_links_existing_user(self, mock_verify):
+        """Existing email user logging in with Google is linked and verified."""
+        existing_user = UserAccount.objects.create_user(
+            email="existing@example.com",
+            password="Password123!",
+            role=UserAccount.Role.CLIENT,
+            is_verified=False,
+        )
+
+        mock_verify.return_value = {
+            "sub": "google-uid-99999",
+            "email": "existing@example.com",
+            "first_name": "Existing",
+            "last_name": "User",
+            "full_name": "Existing User",
+            "picture": "",
+        }
+
+        resp = self.client.post(
+            "/api/auth/google/",
+            data={"access_token": "valid-access-token"},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        existing_user.refresh_from_db()
+        self.assertEqual(existing_user.provider_uid, "google-uid-99999")
+        self.assertEqual(existing_user.auth_provider, UserAccount.AuthProvider.GOOGLE)
+        self.assertTrue(existing_user.is_verified)
+
+    @patch("app.accounts.views.verify_google_token")
+    def test_google_auth_disabled_account_forbidden(self, mock_verify):
+        """Disabled account returns 403 Forbidden."""
+        UserAccount.objects.create_user(
+            email="disabled@example.com",
+            password="Password123!",
+            is_active=False,
+        )
+
+        mock_verify.return_value = {
+            "sub": "google-uid-disabled",
+            "email": "disabled@example.com",
+            "first_name": "Disabled",
+            "last_name": "Account",
+            "full_name": "Disabled Account",
+            "picture": "",
+        }
+
+        resp = self.client.post(
+            "/api/auth/google/",
+            data={"id_token": "some-token"},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
 

@@ -374,3 +374,22 @@ class UpdateUserRoleSerializer(serializers.Serializer):
 
         return value
 
+
+class GoogleAuthSerializer(serializers.Serializer):
+    """
+    Serializer for Google OAuth authentication payload.
+    Accepts either an ID token or an OAuth access token.
+    """
+
+    id_token = serializers.CharField(required=False, allow_blank=True)
+    access_token = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        id_token = attrs.get("id_token")
+        access_token = attrs.get("access_token")
+        if not id_token and not access_token:
+            raise serializers.ValidationError(
+                "Either id_token or access_token must be provided."
+            )
+        return attrs
+
