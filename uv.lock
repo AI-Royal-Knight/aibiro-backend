@@ -18,6 +18,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "cloudinary" },
     { name = "django-anymail" },
+    { name = "django-cors-headers" },
     { name = "django-environ" },
     { name = "djangorestframework-simplejwt" },
     { name = "gunicorn" },
@@ -29,6 +30,7 @@ dependencies = [
 requires-dist = [
     { name = "cloudinary", specifier = ">=1.46.2" },
     { name = "django-anymail", specifier = ">=15.2" },
+    { name = "django-cors-headers", specifier = ">=4.9.0" },
     { name = "django-environ", specifier = ">=0.14.0" },
     { name = "djangorestframework-simplejwt", specifier = ">=5.5.1" },
     { name = "gunicorn", specifier = ">=23.0.0" },
@@ -201,6 +203,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/0b/f9/7fb704db13b2de283d51f1524861e37a87d1e4c345068c90dd578047404f/django_anymail-15.2.tar.gz", hash = "sha256:65b26b1c99e6a09051b71b012ac4dfdd75a33aeb057315944dd9fb872cae57cf", size = 110533, upload-time = "2026-09-05T23:04:17.67Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bc/5a/fe84e7afa8297f86b95b0120e3e635d045719d217fbca321cf56d363286e/django_anymail-15.2-py3-none-any.whl", hash = "sha256:866ed547e9d3110210e6fad343a2311eead55dbd4d544195fb628d06ae25d737", size = 150759, upload-time = "2026-09-05T23:04:16.007Z" },
+]
+
+[[package]]
+name = "django-cors-headers"
+version = "4.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "asgiref" },
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/21/39/55822b15b7ec87410f34cd16ce04065ff390e50f9e29f31d6d116fc80456/django_cors_headers-4.9.0.tar.gz", hash = "sha256:fe5d7cb59fdc2c8c646ce84b727ac2bca8912a247e6e68e1fb507372178e59e8", size = 21458, upload-time = "2025-09-18T10:40:52.326Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/30/d8/19ed1e47badf477d17fb177c1c19b5a21da0fd2d9f093f23be3fb86c5fab/django_cors_headers-4.9.0-py3-none-any.whl", hash = "sha256:15c7f20727f90044dcee2216a9fd7303741a864865f0c3657e28b7056f61b449", size = 12809, upload-time = "2025-09-18T10:40:50.843Z" },
 ]
 
 [[package]]

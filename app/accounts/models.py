@@ -124,6 +124,11 @@ class UserAccount(AbstractBaseUser, PermissionsMixin, BaseModel):
         choices=Role.choices,
         default=Role.CLIENT,
     )
+    functional_roles = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=_("List of specialized consulting roles (e.g. Engagement Lead, Compliance Architect, Policy Specialist)"),
+    )
 
     class TwoFactorMethod(models.TextChoices):
         EMAIL = "email", "Email"

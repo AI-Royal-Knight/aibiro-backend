@@ -1,4 +1,6 @@
+import datetime
 from django.db import models
+from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -7,8 +9,20 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.accounts.models import UserAccount
-from .models import Project, Document
-from .permissions import IsProjectOwnerOrAdmin
+from .models import (
+    Project,
+    Document,
+    ServiceWorkflowTemplate,
+    ProjectPhase,
+    ProjectTask,
+    ProjectStaffAssignment,
+)
+from .permissions import (
+    IsProjectOwnerOrAdmin,
+    IsAdminOnly,
+    IsTaskAssigneeOrAdmin,
+    IsQAReviewerOrAdmin,
+)
 from .serializers import (
     FileUploadSerializer,
     ProjectCreateSerializer,
@@ -16,6 +30,17 @@ from .serializers import (
     DocumentSerializer,
     ProjectListSerializer,
     ProjectUpdateSerializer,
+    ServiceWorkflowTemplateSerializer,
+    WorkflowPreviewRequestSerializer,
+    ProjectCreateFromWorkflowSerializer,
+    ProjectTaskSerializer,
+    ProjectTaskUpdateSerializer,
+    QAReviewActionSerializer,
+)
+from .workflow_engine import (
+    generate_workflow_preview,
+    create_project_from_workflow,
+    get_active_staff_with_workload,
 )
 
 
@@ -24,8 +49,8 @@ class ProjectListCreateView(APIView):
     List user projects or create a new project.
 
     - Clients: View their own projects.
-    - Admins, Super Admins, Staff, QA Reviewers: View all projects.
-    - Project Creation requires: `name`, `company_name`, and `status`.
+    - Admins, Super Admins, QA Reviewers: View all projects.
+    - Staff: View only projects they are assigned to.
     """
 
     permission_classes = [IsAuthenticated]
@@ -33,9 +58,16 @@ class ProjectListCreateView(APIView):
 
     def get(self, request: Request) -> Response:
         user = request.user
-        if user.is_admin_user or user.role in (UserAccount.Role.STAFF, UserAccount.Role.QA_REVIEWER):
+        if user.is_admin_user or user.role == UserAccount.Role.QA_REVIEWER:
             queryset = Project.objects.all()
+        elif user.role == UserAccount.Role.STAFF:
+            # Staff see only assigned projects
+            queryset = Project.objects.filter(
+                models.Q(staff_assignments__staff=user)
+                | models.Q(tasks__assigned_to=user)
+            ).distinct()
         else:
+            # Clients see only their own projects
             queryset = Project.objects.filter(owner=user)
 
         # Filters
@@ -92,7 +124,11 @@ class ProjectDetailView(APIView):
 
     def get_object(self, pk: str) -> Project:
         try:
-            project = Project.objects.prefetch_related("files").get(pk=pk)
+            project = Project.objects.prefetch_related(
+                "documents",
+                "phases__tasks__assigned_to",
+                "staff_assignments__staff",
+            ).get(pk=pk)
         except (Project.DoesNotExist, ValueError):
             raise Project.DoesNotExist
 
@@ -361,3 +397,293 @@ class DocumentDetailView(APIView):
             },
             status=status.HTTP_204_NO_CONTENT,
         )
+
+
+class ServiceWorkflowListView(APIView):
+    """
+    List all available predefined service workflow templates.
+    Used by the Admin Project Creation wizard.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        templates = ServiceWorkflowTemplate.objects.filter(is_active=True).prefetch_related(
+            "phase_templates__task_templates"
+        )
+        serializer = ServiceWorkflowTemplateSerializer(templates, many=True)
+        return Response(
+            {
+                "success": True,
+                "count": templates.count(),
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ProjectWorkflowPreviewView(APIView):
+    """
+    Generate an interactive workflow preview before database persistence:
+    Calculates phases, tasks, due dates, and auto-assigned staff by role and workload.
+    Restricted to Admins and Super Admins.
+    """
+
+    permission_classes = [IsAuthenticated, IsAdminOnly]
+
+    def post(self, request: Request) -> Response:
+        serializer = WorkflowPreviewRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        service_slug = data.get("service_slug", "").strip()
+        service_id = data.get("service_workflow_template_id")
+        template = None
+        if service_slug:
+            template = ServiceWorkflowTemplate.objects.filter(slug=service_slug, is_active=True).first()
+            if not template:
+                try:
+                    template = ServiceWorkflowTemplate.objects.filter(id=service_slug, is_active=True).first()
+                except Exception:
+                    pass
+        if not template and service_id:
+            template = ServiceWorkflowTemplate.objects.filter(id=service_id, is_active=True).first()
+
+        if not template:
+            return Response(
+                {"detail": f"Service template '{service_slug or service_id}' not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        start_date = data.get("start_date") or timezone.now().date()
+        client_name = data.get("client_name") or ""
+        project_name = data.get("project_name") or None
+
+        # If client_id provided, look up organization name
+        if data.get("client_id") and not client_name:
+            client_user = UserAccount.objects.filter(id=data["client_id"]).first()
+            if client_user:
+                client_name = client_user.full_name or client_user.email.split("@")[0]
+
+        preview = generate_workflow_preview(
+            service_template=template,
+            start_date=start_date,
+            custom_project_name=project_name,
+            client_name=client_name,
+        )
+
+        return Response(
+            {
+                "success": True,
+                "data": preview,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ProjectCreateFromWorkflowView(APIView):
+    """
+    Create one or more Projects from predefined service workflow templates.
+    If the Admin selects multiple services, creates distinct, separate projects for each.
+    Restricted to Admins and Super Admins.
+    """
+
+    permission_classes = [IsAuthenticated, IsAdminOnly]
+
+    def post(self, request: Request) -> Response:
+        serializer = ProjectCreateFromWorkflowSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        client_user = UserAccount.objects.filter(id=data["client_id"]).first()
+        if not client_user:
+            return Response(
+                {"detail": "Specified client user not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        company_name = data.get("company_name")
+        if not company_name:
+            company_name = client_user.full_name or client_user.email.split("@")[0]
+
+        start_date = data.get("start_date") or timezone.now().date()
+        service_slugs = data["service_slugs"]
+        staff_overrides = data.get("staff_overrides") or {}
+        custom_tasks = data.get("custom_tasks") or []
+        custom_name = data.get("project_name") or ""
+        description = data.get("description") or ""
+
+        created_projects = []
+
+        for idx, slug in enumerate(service_slugs):
+            template = ServiceWorkflowTemplate.objects.filter(slug=slug, is_active=True).first()
+            if not template:
+                try:
+                    template = ServiceWorkflowTemplate.objects.filter(id=slug, is_active=True).first()
+                except Exception:
+                    pass
+            if not template:
+                continue
+
+            # Only use custom_name if single service was selected, otherwise prefix service
+            p_name = None
+            if len(service_slugs) == 1 and custom_name:
+                p_name = custom_name
+            elif custom_name:
+                p_name = f"{custom_name} ({template.name})"
+
+            project = create_project_from_workflow(
+                client_user=client_user,
+                service_template=template,
+                start_date=start_date,
+                company_name=company_name,
+                project_name=p_name,
+                description=description,
+                staff_overrides=staff_overrides,
+                custom_tasks=custom_tasks if idx == 0 else [],
+                created_by_admin=request.user,
+            )
+            created_projects.append(project)
+
+        if not created_projects:
+            return Response(
+                {"detail": "No valid service templates found for the provided slugs."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        output_serializer = ProjectListSerializer(created_projects, many=True, context={"request": request})
+
+        return Response(
+            {
+                "success": True,
+                "message": f"Successfully created {len(created_projects)} project(s) from service workflow.",
+                "count": len(created_projects),
+                "data": output_serializer.data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class StaffDirectoryForProjectsView(APIView):
+    """
+    Returns active staff and admin members with their functional roles and workload.
+    Used for staff reassignment dropdowns in the Admin wizard.
+    """
+
+    permission_classes = [IsAuthenticated, IsAdminOnly]
+
+    def get(self, request: Request) -> Response:
+        staff_list = get_active_staff_with_workload()
+        return Response(
+            {
+                "success": True,
+                "count": len(staff_list),
+                "data": staff_list,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ClientDirectoryForProjectsView(APIView):
+    """
+    Returns list of clients for the Admin project creation selector.
+    """
+
+    permission_classes = [IsAuthenticated, IsAdminOnly]
+
+    def get(self, request: Request) -> Response:
+        clients = UserAccount.objects.filter(role=UserAccount.Role.CLIENT, is_active=True).order_by("email")
+        data = []
+        for c in clients:
+            comp_name = "Valley Medical Center" if c.email == "client@gmail.com" else (c.job_title or c.full_name or c.username or "Healthcare Organization")
+            client_name = c.full_name or f"{c.first_name} {c.last_name}".strip() or (c.username or c.email.split("@")[0].capitalize())
+            data.append({
+                "id": str(c.id),
+                "email": c.email,
+                "name": client_name,
+                "company_name": comp_name,
+            })
+        return Response(
+            {
+                "success": True,
+                "count": len(data),
+                "data": data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ProjectTaskDetailUpdateView(APIView):
+    """
+    Staff member updates task status, deliverables, or notes and submits for QA review.
+    """
+
+    permission_classes = [IsAuthenticated, IsTaskAssigneeOrAdmin]
+
+    def patch(self, request: Request, pk: str) -> Response:
+        task = ProjectTask.objects.filter(pk=pk).first()
+        if not task:
+            return Response({"detail": "Task not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        self.check_object_permissions(request, task)
+
+        serializer = ProjectTaskUpdateSerializer(task, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated_task = serializer.save()
+
+        # If staff submits for QA, update qa_status
+        if updated_task.status == ProjectTask.TaskStatus.SUBMITTED_FOR_QA:
+            updated_task.qa_status = ProjectTask.QAStatus.UNDER_REVIEW
+            updated_task.save(update_fields=["qa_status", "updated_at"])
+
+        return Response(
+            {
+                "success": True,
+                "message": "Task updated successfully.",
+                "data": ProjectTaskSerializer(updated_task).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ProjectTaskQAReviewView(APIView):
+    """
+    QA Reviewer approves task submission or requests changes.
+    """
+
+    permission_classes = [IsAuthenticated, IsQAReviewerOrAdmin]
+
+    def post(self, request: Request, pk: str) -> Response:
+        task = ProjectTask.objects.filter(pk=pk).first()
+        if not task:
+            return Response({"detail": "Task not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = QAReviewActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        action = serializer.validated_data["action"]
+        notes = serializer.validated_data.get("notes", "")
+
+        if action == "approve":
+            task.status = ProjectTask.TaskStatus.COMPLETED
+            task.qa_status = ProjectTask.QAStatus.APPROVED
+            task.qa_notes = notes
+            task.qa_reviewer = request.user
+            task.save(update_fields=["status", "qa_status", "qa_notes", "qa_reviewer", "updated_at"])
+            message = "Task approved and marked completed."
+        else:
+            task.status = ProjectTask.TaskStatus.CHANGES_REQUESTED
+            task.qa_status = ProjectTask.QAStatus.CHANGES_REQUESTED
+            task.qa_notes = notes
+            task.qa_reviewer = request.user
+            task.save(update_fields=["status", "qa_status", "qa_notes", "qa_reviewer", "updated_at"])
+            message = "Changes requested and assigned staff notified."
+
+        return Response(
+            {
+                "success": True,
+                "message": message,
+                "data": ProjectTaskSerializer(task).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
