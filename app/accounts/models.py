@@ -315,3 +315,28 @@ class PasswordChangeHistory(BaseModel):
 
     def __str__(self):
         return f"{self.user.email} - {self.status} at {self.created_at}"
+
+
+class NotificationSettings(BaseModel):
+    """
+    Stores notification preferences for a user.
+    """
+    user = models.OneToOneField(
+        UserAccount,
+        on_delete=models.CASCADE,
+        related_name="notification_settings",
+    )
+    email_notifications = models.BooleanField(default=True)
+    project_updates = models.BooleanField(default=True)
+    payment_reminders = models.BooleanField(default=True)
+    ai_analysis_reports = models.BooleanField(default=False)
+    critical_alerts = models.BooleanField(default=True)
+    weekly_summary = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Notification Settings"
+        verbose_name_plural = "Notification Settings"
+
+    def __str__(self):
+        return f"Notification Settings for {self.user.email}"
+

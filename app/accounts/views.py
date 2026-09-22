@@ -21,9 +21,12 @@ from .serializers import (
     LoginSerializer,
     LogoutSerializer,
     PasswordChangeHistorySerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetVerifySerializer,
     PasswordUpdateSerializer,
     ProfileSettingsSerializer,
     ResendOTPSerializer,
+    NotificationSettingsSerializer,
     SignUpSerializer,
     TwoFactorToggleSerializer,
     UpdateUserRoleSerializer,
@@ -519,6 +522,40 @@ class PasswordUpdateView(APIView):
         )
 
 
+class NotificationSettingsView(APIView):
+    """
+    Class-based view for retrieving and updating notification settings.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = NotificationSettingsSerializer
+
+    def get(self, request: Request) -> Response:
+        from .models import NotificationSettings
+        settings, _ = NotificationSettings.objects.get_or_create(user=request.user)
+        return Response(
+            {
+                "success": True,
+                "data": self.serializer_class(settings).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request: Request) -> Response:
+        from .models import NotificationSettings
+        settings, _ = NotificationSettings.objects.get_or_create(user=request.user)
+        serializer = self.serializer_class(settings, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {
+                "success": True,
+                "message": "Notification preferences updated successfully.",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class PasswordChangeHistoryView(generics.ListAPIView):
     """
     Class-based view to list password change history and security events for the authenticated user.
@@ -671,5 +708,82 @@ class EmailPreviewView(View):
         }
         html_content = render_to_string("accounts/emails/verification_code.html", context)
         return HttpResponse(html_content, content_type="text/html")
+
+
+class PasswordResetRequestView(APIView):
+    """
+    Request a password reset. Finds user by email and sends an OTP.
+    """
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetRequestSerializer
+
+    def post(self, request: Request) -> Response:
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"]
+
+        try:
+            user = UserAccount.objects.get(email=email)
+            _, raw_otp = create_otp_for_user(user)
+            send_otp_email(user, raw_otp, purpose="password_reset")
+        except UserAccount.DoesNotExist:
+            # Silently succeed to prevent email enumeration
+            pass
+
+        return Response(
+            {
+                "success": True,
+                "message": "If the email is valid, a password reset code has been sent.",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetVerifyView(APIView):
+    """
+    Verify OTP and update the user's password.
+    """
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetVerifySerializer
+
+    def post(self, request: Request) -> Response:
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        email = serializer.validated_data["email"]
+        otp = serializer.validated_data["otp"]
+        new_password = serializer.validated_data["new_password"]
+
+        try:
+            user = UserAccount.objects.get(email=email)
+        except UserAccount.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Invalid email or OTP."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        is_valid, error_msg = verify_otp_for_user(user, otp)
+        if not is_valid:
+            return Response(
+                {"success": False, "message": error_msg},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(new_password)
+        user.save()
+
+        record_password_change_event(
+            request=request,
+            user=user,
+            status=PasswordChangeHistory.Status.SUCCESS,
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": "Password reset successfully. You can now log in with your new password.",
+            },
+            status=status.HTTP_200_OK,
+        )
 
 

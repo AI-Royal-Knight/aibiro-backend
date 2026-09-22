@@ -202,18 +202,72 @@ def get_client_location(request) -> str:
     return "Unknown Location"
 
 
+def send_password_update_email(user: UserAccount, history_event: PasswordChangeHistory) -> bool:
+    """
+    Send an email notifying the user that their password was updated.
+    Includes security context (time, device, location).
+    """
+    recipient_name = user.first_name or user.full_name or (user.email.split("@")[0] if user.email else "User")
+    subject = "Security Alert: Your password has been updated"
+    
+    timestamp = history_event.created_at.strftime("%B %d, %Y at %I:%M %p UTC") if history_event.created_at else "Recently"
+    
+    context = {
+        "user": user,
+        "recipient_name": recipient_name,
+        "recipient_email": user.email,
+        "subject": subject,
+        "timestamp": timestamp,
+        "device_info": history_event.device_info or "Unknown Device",
+        "location": history_event.location or "Unknown Location",
+        "ip_address": history_event.ip_address or "Unknown IP",
+    }
+
+    try:
+        html_message = render_to_string("accounts/emails/password_update.html", context)
+    except Exception:
+        html_message = None
+
+    try:
+        plain_message = render_to_string("accounts/emails/password_update.txt", context)
+    except Exception:
+        plain_message = (
+            f"Hello {recipient_name},\n\n"
+            f"Your AccrediSure password was recently changed.\n"
+            f"Device: {history_event.device_info}\n"
+            f"Location: {history_event.location}\n\n"
+            f"If you did not make this change, please contact support immediately.\n\n"
+            f"Best regards,\nThe AccrediSure Team"
+        )
+
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@midgeneration.com")
+
+    try:
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=from_email,
+            recipient_list=[user.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+        return True
+    except Exception:
+        return False
+
+
 def record_password_change_event(
     request,
     user: UserAccount,
     status: str,
 ) -> PasswordChangeHistory:
-    """Record an audit trail entry for a password change attempt."""
+    """Record an audit trail entry for a password change attempt and optionally email."""
     device_info = parse_device_info(request)
     location = get_client_location(request)
     ip_address = get_client_ip(request)
     user_agent = request.META.get("HTTP_USER_AGENT", "")
 
-    return PasswordChangeHistory.objects.create(
+    event = PasswordChangeHistory.objects.create(
         user=user,
         status=status,
         device_info=device_info,
@@ -221,3 +275,8 @@ def record_password_change_event(
         ip_address=ip_address,
         user_agent=user_agent,
     )
+    
+    if status == PasswordChangeHistory.Status.SUCCESS:
+        send_password_update_email(user, event)
+        
+    return event

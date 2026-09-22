@@ -7,6 +7,8 @@ from .views import (
     LoginView,
     LogoutView,
     PasswordChangeHistoryView,
+    PasswordResetRequestView,
+    PasswordResetVerifyView,
     PasswordUpdateView,
     ResendOTPView,
     SignUpView,
@@ -15,6 +17,7 @@ from .views import (
     UserProfileView,
     UserRoleUpdateView,
     VerifyOTPView,
+    NotificationSettingsView,
 )
 
 urlpatterns = [
@@ -29,7 +32,10 @@ urlpatterns = [
     path("token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("profile/", UserProfileView.as_view(), name="profile"),
     path("profile/settings/", UserProfileView.as_view(), name="profile-settings"),
+    path("profile/notifications/", NotificationSettingsView.as_view(), name="notification-settings"),
     path("security/password/", PasswordUpdateView.as_view(), name="password-update"),
+    path("password-reset/", PasswordResetRequestView.as_view(), name="password-reset-request"),
+    path("password-reset/verify/", PasswordResetVerifyView.as_view(), name="password-reset-verify"),
     path("security/password-history/", PasswordChangeHistoryView.as_view(), name="password-history"),
     path("security/password/history/", PasswordChangeHistoryView.as_view(), name="password-history-alias"),
     path("security/2fa/", TwoFactorToggleView.as_view(), name="2fa-toggle"),

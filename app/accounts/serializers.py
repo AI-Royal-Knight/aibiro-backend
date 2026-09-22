@@ -2,13 +2,15 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import PasswordChangeHistory, UserAccount
+from .models import PasswordChangeHistory, UserAccount, NotificationSettings
 
 
 class UserAccountSerializer(serializers.ModelSerializer):
     """
     Public representation of a user account.
     """
+
+    has_usable_password = serializers.SerializerMethodField()
 
     class Meta:
         model = UserAccount
@@ -30,8 +32,12 @@ class UserAccountSerializer(serializers.ModelSerializer):
             "is_active",
             "date_joined",
             "created_at",
+            "has_usable_password",
         )
         read_only_fields = fields
+
+    def get_has_usable_password(self, obj) -> bool:
+        return obj.has_usable_password()
 
 
 class ProfileSettingsSerializer(serializers.ModelSerializer):
@@ -219,7 +225,8 @@ class PasswordUpdateSerializer(serializers.Serializer):
 
     current_password = serializers.CharField(
         write_only=True,
-        required=True,
+        required=False,
+        allow_blank=True,
         style={"input_type": "password"},
     )
     new_password = serializers.CharField(
@@ -233,16 +240,21 @@ class PasswordUpdateSerializer(serializers.Serializer):
         style={"input_type": "password"},
     )
 
-    def validate_current_password(self, value: str) -> str:
-        user = self.context["request"].user
-        if not user.check_password(value):
-            raise serializers.ValidationError("Current password does not match.")
-        return value
-
     def validate(self, attrs: dict) -> dict:
+        user = self.context["request"].user
         current_password = attrs.get("current_password")
         new_password = attrs.get("new_password")
         confirm_new_password = attrs.get("confirm_new_password")
+
+        if user.has_usable_password():
+            if not current_password:
+                raise serializers.ValidationError(
+                    {"current_password": "This field is required when updating an existing password."}
+                )
+            if not user.check_password(current_password):
+                raise serializers.ValidationError(
+                    {"current_password": "Current password does not match."}
+                )
 
         if new_password != confirm_new_password:
             raise serializers.ValidationError(
@@ -278,6 +290,23 @@ class TwoFactorToggleSerializer(serializers.Serializer):
         required=False,
         default=UserAccount.TwoFactorMethod.EMAIL,
     )
+
+
+class NotificationSettingsSerializer(serializers.ModelSerializer):
+    """
+    Serializer for NotificationSettings.
+    """
+
+    class Meta:
+        model = NotificationSettings
+        fields = (
+            "email_notifications",
+            "project_updates",
+            "payment_reminders",
+            "ai_analysis_reports",
+            "critical_alerts",
+            "weekly_summary",
+        )
 
 
 class PasswordChangeHistorySerializer(serializers.ModelSerializer):
@@ -391,5 +420,42 @@ class GoogleAuthSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Either id_token or access_token must be provided."
             )
+        return attrs
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """
+    Serializer to request a password reset via email.
+    """
+    email = serializers.EmailField()
+
+
+class PasswordResetVerifySerializer(serializers.Serializer):
+    """
+    Serializer to verify OTP and set a new password.
+    """
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=10)
+    new_password = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={"input_type": "password"},
+    )
+    confirm_new_password = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={"input_type": "password"},
+    )
+
+    def validate(self, attrs: dict) -> dict:
+        new_password = attrs.get("new_password")
+        confirm_new_password = attrs.get("confirm_new_password")
+
+        if new_password != confirm_new_password:
+            raise serializers.ValidationError(
+                {"confirm_new_password": "New passwords do not match."}
+            )
+
+        validate_password(new_password)
         return attrs
 
