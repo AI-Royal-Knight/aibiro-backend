@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
     'anymail',
+    'storages',
     # Local apps
     'app.common',
     'app.accounts',
@@ -174,4 +175,28 @@ EMAIL_BACKEND = env(
 GOOGLE_CLIENT_ID = env.str("GOOGLE_CLIENT_ID", default="")
 GOOGLE_CLIENT_SECRET = env.str("GOOGLE_CLIENT_SECRET", default="")
 
+# Cloudflare R2 / AWS S3 Storage Configuration
+AWS_ACCESS_KEY_ID = env.str('R2_ACCESS_KEY_ID', default='')
+AWS_SECRET_ACCESS_KEY = env.str('R2_SECRET_ACCESS_KEY', default='')
+AWS_STORAGE_BUCKET_NAME = env.str('R2_BUCKET_NAME', default='')
+R2_ACCOUNT_ID = env.str('R2_ACCOUNT_ID', default='')
 
+if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME and R2_ACCOUNT_ID:
+    AWS_S3_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+    AWS_S3_CUSTOM_DOMAIN = env.str('R2_CUSTOM_DOMAIN', default='')
+    AWS_S3_REGION_NAME = 'auto'
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'max-age=86400',
+    }
+    # For Django 4.2+ using STORAGES dictionary
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+    # Ensure django-storages doesn't overwrite files with the same name
+    AWS_S3_FILE_OVERWRITE = False

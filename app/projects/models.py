@@ -254,6 +254,12 @@ class Document(BaseModel):
         _, ext = os.path.splitext(self.original_name)
         return ext.lower().lstrip(".")
 
+    def delete(self, *args, **kwargs):
+        # Ensure the physical file is deleted from R2 / Local storage when record is deleted
+        if self.file:
+            self.file.delete(save=False)
+        super().delete(*args, **kwargs)
+
 
 class ProjectPhase(BaseModel):
     """

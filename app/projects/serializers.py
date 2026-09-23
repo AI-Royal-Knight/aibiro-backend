@@ -52,10 +52,13 @@ class DocumentSerializer(serializers.ModelSerializer):
 
     def get_file_url(self, obj: Document) -> str:
         if obj.file:
+            url = obj.file.url
+            if url.startswith("http") or url.startswith("//"):
+                return url
             request = self.context.get("request")
             if request:
-                return request.build_absolute_uri(obj.file.url)
-            return obj.file.url
+                return request.build_absolute_uri(url)
+            return url
         return ""
 
     def get_file_size_formatted(self, obj: Document) -> str:
