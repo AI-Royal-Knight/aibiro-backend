@@ -1,0 +1,47 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>You've been invited to AccrediSure</title>
+  <style type="text/css">
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
+    body { background-color: #F5F2EB; font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F5F2EB; font-family: 'Inter', sans-serif;">
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F5F2EB; min-height: 100%;">
+    <tr>
+      <td align="center" style="padding: 40px 16px;">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 580px; background-color: #FFFFFF; border-radius: 18px; border: 1px solid #E4DDD1;">
+          <tr>
+            <td align="center" style="background-color: #1A1611; padding: 36px 30px; text-align: center; border-bottom: 3px solid #B18F56;">
+              <h1 style="color: #FFFFFF; font-family: 'Playfair Display', serif;">AccrediSure</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 38px 40px;">
+              <h1 style="color: #201A12; font-family: 'Playfair Display', serif;">You've been invited!</h1>
+              <p style="color: #3D352D;">Hello <strong>{{ recipient_name|default:"there" }}</strong>,</p>
+              <p style="color: #574E43;">An administrator has invited you to join <strong>AccrediSure</strong> as a client. To activate your account and securely access your compliance dashboard, please set your password by clicking the button below.</p>
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 30px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="{{ invite_url }}" style="display: inline-block; background-color: #201A12; color: #FFFFFF; padding: 14px 28px; border-radius: 8px; text-decoration: none;">Accept Invitation</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="color: #877D70; font-size: 13px;">If the button doesn't work, copy and paste this URL into your browser:<br><a href="{{ invite_url }}" style="color: #9C7C4A;">{{ invite_url }}</a></p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="background-color: #FBF9F5; padding: 28px 40px; text-align: center; color: #9C9283; font-size: 11px;">
+              This message was delivered to {{ recipient_email }}. &copy; 2026 AccrediSure Inc.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

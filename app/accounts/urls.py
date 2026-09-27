@@ -18,6 +18,8 @@ from .views import (
     UserRoleUpdateView,
     VerifyOTPView,
     NotificationSettingsView,
+    AdminUserManagementView,
+    AcceptInvitationView,
 )
 
 urlpatterns = [
@@ -40,5 +42,8 @@ urlpatterns = [
     path("security/password/history/", PasswordChangeHistoryView.as_view(), name="password-history-alias"),
     path("security/2fa/", TwoFactorToggleView.as_view(), name="2fa-toggle"),
     path("users/", UserManagementListView.as_view(), name="user-list"),
+    path("users/invite/", AdminUserManagementView.as_view(), name="user-invite"),
+    path("users/<uuid:pk>/", AdminUserManagementView.as_view(), name="user-delete"),
     path("users/<uuid:pk>/role/", UserRoleUpdateView.as_view(), name="user-role-update"),
+    path("accept-invite/", AcceptInvitationView.as_view(), name="accept-invite"),
 ]

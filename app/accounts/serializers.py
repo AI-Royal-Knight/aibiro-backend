@@ -459,3 +459,24 @@ class PasswordResetVerifySerializer(serializers.Serializer):
         validate_password(new_password)
         return attrs
 
+
+class UserInviteSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    full_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
+
+    def validate_email(self, value):
+        from .models import UserAccount
+        if UserAccount.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value.lower().strip()
+
+
+class AcceptInvitationSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(min_length=8)
+
+    def validate_new_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+        validate_password(value)
+        return value

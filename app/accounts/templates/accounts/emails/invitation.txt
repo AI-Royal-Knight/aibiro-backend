@@ -1,0 +1,10 @@
+Hello {{ recipient_name|default:"there" }},
+
+An administrator has invited you to join AccrediSure as a client. To activate your account and securely access your compliance dashboard, please set your password by clicking the link below:
+
+{{ invite_url }}
+
+If you have any questions, please contact our support team.
+
+Best regards,
+The AccrediSure Team

@@ -3,6 +3,10 @@ import logging
 import urllib.error
 import urllib.parse
 import urllib.request
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
 from django.conf import settings
 from django.db import models
 from django.http import HttpResponse
@@ -32,6 +36,8 @@ from .serializers import (
     UpdateUserRoleSerializer,
     UserAccountSerializer,
     UserManagementSerializer,
+    UserInviteSerializer,
+    AcceptInvitationSerializer,
     VerifyOTPSerializer,
 )
 from .permissions import CanManageUserRoles, IsAdmin
@@ -786,4 +792,140 @@ class PasswordResetVerifyView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
+
+
+class AdminUserManagementView(APIView):
+    """
+    POST: Invite a new user (creates account with unusable password and sends invite email).
+    DELETE: Remove a user account.
+    Restricted to Admins and Super Admins.
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request: Request) -> Response:
+        serializer = UserInviteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data["email"]
+        full_name = serializer.validated_data.get("full_name", "")
+
+        user = UserAccount.objects.create(
+            email=email,
+            full_name=full_name,
+            role=UserAccount.Role.CLIENT,
+        )
+        user.set_unusable_password()
+        user.save()
+
+        # Generate invite token
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+
+        # frontend url for accepting invite
+        frontend_url = settings.FRONTEND_URL if hasattr(settings, 'FRONTEND_URL') else "http://localhost:3000"
+        invite_url = f"{frontend_url}/accept-invite?uid={uid}&token={token}"
+
+        context = {
+            "recipient_name": full_name or email.split('@')[0],
+            "recipient_email": email,
+            "invite_url": invite_url,
+        }
+
+        try:
+            html_message = render_to_string("accounts/emails/invitation.html", context)
+            plain_message = render_to_string("accounts/emails/invitation.txt", context)
+            from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@midgeneration.com")
+
+            send_mail(
+                subject="You have been invited to AccrediSure",
+                message=plain_message,
+                from_email=from_email,
+                recipient_list=[email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+        except Exception as e:
+            logging.error(f"Failed to send invite email to {email}: {str(e)}")
+
+        return Response(
+            {
+                "success": True,
+                "message": "User invited successfully.",
+                "data": UserAccountSerializer(user).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    def delete(self, request: Request, pk) -> Response:
+        try:
+            user = UserAccount.objects.get(pk=pk)
+        except (UserAccount.DoesNotExist, ValueError):
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if user == request.user:
+            return Response(
+                {"detail": "You cannot delete yourself."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.delete()
+        return Response(
+            {
+                "success": True,
+                "message": "User deleted successfully.",
+            },
+            status=status.HTTP_204_NO_CONTENT,
+        )
+
+
+class AcceptInvitationView(APIView):
+    """
+    POST: Accept invitation and set password.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        serializer = AcceptInvitationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        uidb64 = serializer.validated_data["uid"]
+        token = serializer.validated_data["token"]
+        new_password = serializer.validated_data["new_password"]
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = UserAccount.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, UserAccount.DoesNotExist):
+            user = None
+
+        if user is not None and default_token_generator.check_token(user, token):
+            user.set_password(new_password)
+            user.is_active = True
+            user.save()
+
+            record_password_change_event(
+                request=request,
+                user=user,
+                status=PasswordChangeHistory.Status.SUCCESS,
+            )
+
+            return Response(
+                {
+                    "success": True,
+                    "message": "Password set successfully. You can now log in.",
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Invalid or expired invitation link.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
