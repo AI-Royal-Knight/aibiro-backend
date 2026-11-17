@@ -16,6 +16,7 @@ from .models import (
     ProjectPhase,
     ProjectTask,
     ProjectStaffAssignment,
+    BoardTask,
 )
 from .permissions import (
     IsProjectOwnerOrAdmin,
@@ -36,6 +37,7 @@ from .serializers import (
     ProjectTaskSerializer,
     ProjectTaskUpdateSerializer,
     QAReviewActionSerializer,
+    BoardTaskSerializer,
 )
 from .workflow_engine import (
     generate_workflow_preview,
@@ -686,4 +688,25 @@ class ProjectTaskQAReviewView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+class BoardTaskListCreateView(generics.ListCreateAPIView):
+    serializer_class = BoardTaskSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_admin_user:
+            return BoardTask.objects.all()
+        return BoardTask.objects.filter(assigned_to=user)
+
+class BoardTaskDetailUpdateView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = BoardTaskSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_admin_user:
+            return BoardTask.objects.all()
+        return BoardTask.objects.filter(assigned_to=user)
+
 

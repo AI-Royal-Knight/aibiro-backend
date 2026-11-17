@@ -1,7 +1,7 @@
 import os
 from rest_framework import serializers
 
-from .models import Project, Document
+from .models import Project, Document, BoardTask
 
 
 class DocumentSerializer(serializers.ModelSerializer):
@@ -593,4 +593,25 @@ class QAReviewActionSerializer(serializers.Serializer):
         allow_blank=True,
         default="",
     )
+
+class BoardTaskSerializer(serializers.ModelSerializer):
+    assigned_to_name = serializers.CharField(source='assigned_to.full_name', read_only=True)
+    
+    class Meta:
+        model = BoardTask
+        fields = (
+            "id",
+            "title",
+            "description",
+            "client_name",
+            "assigned_to",
+            "assigned_to_name",
+            "due_date",
+            "status",
+            "priority",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at", "assigned_to_name")
+
 

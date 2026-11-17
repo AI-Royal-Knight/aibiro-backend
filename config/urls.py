@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/health/', include('app.common.urls')),
     path('api/auth/', include('app.accounts.urls')),
     path('api/projects/', include('app.projects.urls')),
+    path('api/meetings/', include('app.meetings.urls')),
 ]
 
 if settings.DEBUG:

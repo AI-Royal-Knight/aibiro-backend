@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'app.common',
     'app.accounts',
     'app.projects',
+    'app.meetings',
 ]
 
 MIDDLEWARE = [

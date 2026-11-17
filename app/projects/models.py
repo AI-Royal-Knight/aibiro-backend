@@ -421,3 +421,30 @@ class ProjectStaffAssignment(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.staff.email} as {self.role_assigned} on {self.project.name}"
+
+class BoardTask(BaseModel):
+    """
+    General task for the global task board.
+    """
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    client_name = models.CharField(max_length=255, blank=True, default="")
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="board_tasks"
+    )
+    due_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=50, default="To Do")
+    priority = models.CharField(max_length=50, default="Medium")
+
+    class Meta:
+        verbose_name = "Board Task"
+        verbose_name_plural = "Board Tasks"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return self.title
+

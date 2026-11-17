@@ -12,6 +12,8 @@ from .views import (
     ClientDirectoryForProjectsView,
     ProjectTaskDetailUpdateView,
     ProjectTaskQAReviewView,
+    BoardTaskListCreateView,
+    BoardTaskDetailUpdateView,
 )
 
 urlpatterns = [
@@ -26,5 +28,7 @@ urlpatterns = [
     path("<uuid:pk>/", ProjectDetailView.as_view(), name="project-detail"),
     path("<uuid:project_id>/files/", DocumentUploadView.as_view(), name="project-documents"),
     path("<uuid:project_id>/files/<uuid:file_id>/", DocumentDetailView.as_view(), name="project-document-detail"),
+    path("board-tasks/", BoardTaskListCreateView.as_view(), name="board-task-list"),
+    path("board-tasks/<uuid:pk>/", BoardTaskDetailUpdateView.as_view(), name="board-task-detail"),
 ]
 
